@@ -7,14 +7,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with: { ref: pack, lfs: false }
+        with:
+          ref: pack
       - name: Réassembler et vérifier
         run: |
           cat pack/part-* > hermes-pack-0.23.0-2bd378e-muse3-aarch64-ubuntu.tar.gz
           sha256sum -c pack/SHA256SUMS
           cp pack/SHA256SUMS hermes-pack-0.23.0-2bd378e-muse3-aarch64-ubuntu.tar.gz.sha256
       - name: Release
-        env: { GH_TOKEN: "${{ github.token }}" }
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           gh release view hermes-pack-0.23.0 -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
             gh release create hermes-pack-0.23.0 -R "$GITHUB_REPOSITORY" --target main --prerelease \
