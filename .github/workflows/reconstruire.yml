@@ -309,7 +309,9 @@ jobs:
           echo "TAILLE $(stat -c %s "$apk") SHA256 $sha"
           echo "== Méthode A : apksigner + aapt2"
           "$bt/apksigner" verify --verbose --print-certs "$apk" | tee verif-A.txt
-          certA=$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' verif-A.txt)
+          # Selon --verbose, apksigner écrit « Signer #1 certificate … » ou « V2 Signer: certificate … » : un seul certificat attendu.
+          certA=$(grep -oE 'certificate SHA-256 digest: [0-9a-f]{64}' verif-A.txt | awk '{print $NF}' | sort -u)
+          grep -qx 'Verifies' verif-A.txt || { echo "::error::apksigner ne valide pas la signature"; exit 1; }
           [ "$certA" = "$CERT_ATTENDU" ] || { echo "::error::certificat (A) $certA ≠ attendu"; exit 1; }
           "$bt/aapt2" dump badging "$apk" | grep -E "^package:|application-label:|native-code" | tee badging.txt
           grep -qE "^package: name='$APPLICATION_ID' versionCode='$VC' versionName='$NOM'" badging.txt \
@@ -362,6 +364,6 @@ jobs:
         if: always()
         run: |
           for f in "$RUNNER_TEMP"/signature/* up/android/keystore.properties; do
-            [ -f "$f" ] && shred -u -z "$f" && echo "effacé : $(basename "$f")"
+            if [ -f "$f" ]; then shred -u -z "$f" && echo "effacé : $(basename "$f")"; fi
           done
           rm -rf "$RUNNER_TEMP/signature"
