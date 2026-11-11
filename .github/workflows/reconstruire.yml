@@ -1,0 +1,367 @@
+name: Reconstruire nanoMuse Hermes
+
+# Chaque jour (et à la demande) : si nano-muse/nanoMuse a publié une nouvelle version officielle,
+# on rejoue notre correctif (ci/patches) dessus, on construit l'APK release, on le signe avec la clé
+# du projet, on le vérifie de deux façons, puis on le publie comme dernière version de ce dépôt.
+# Si le correctif ne s'applique plus : échec SANS publication (l'ancienne version reste) + ticket.
+
+on:
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+    inputs:
+      forcer:
+        description: "Reconstruire même si la version officielle n'a pas changé"
+        type: boolean
+        default: false
+
+concurrency:
+  group: reconstruire
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  issues: write
+
+env:
+  DEPOT_OFFICIEL: nano-muse/nanoMuse
+  NDK_VERSION: 27.2.12479018
+  CERT_ATTENDU: 2c0d4cdf500e94d23cd3ab080c774be38890350178b4144869e7cf4b8755249a
+  APPLICATION_ID: io.github.kenete.nanohermes
+  PACK_HERMES_URL: https://github.com/kenete2001-png/nanomuse-hermes/releases/tag/hermes-pack-0.23.0
+
+jobs:
+  verifier:
+    name: Nouvelle version officielle ?
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      construire: ${{ steps.d.outputs.construire }}
+      tag: ${{ steps.d.outputs.tag }}
+      version: ${{ steps.d.outputs.version }}
+      dernier_vc: ${{ steps.d.outputs.dernier_vc }}
+    steps:
+      - name: Comparer avec la dernière publication de ce dépôt
+        id: d
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FORCER: ${{ github.event_name == 'workflow_dispatch' && inputs.forcer && 'true' || 'false' }}
+        run: |
+          set -euo pipefail
+          tag=$(gh api "repos/$DEPOT_OFFICIEL/releases/latest" --jq .tag_name 2>/dev/null || true)
+          if ! [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "releases/latest indisponible ou hors format ('$tag') : repli sur les tags"
+            tag=$(gh api "repos/$DEPOT_OFFICIEL/tags?per_page=100" --jq '.[].name' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1)
+          fi
+          [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::aucune version officielle trouvée"; exit 1; }
+          gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" > publications.json
+          python3 - "$tag" <<'PY' > precedent.txt
+          import json, re, sys
+          rels = json.load(open('publications.json'))
+          meilleur = (0, '')
+          for r in rels:
+              if r.get('draft') or not re.match(r'^v\d+\.\d+\.\d+-nh\d+$', r['tag_name']): continue
+              corps = r.get('body') or ''
+              m = re.search(r'(?im)^\s*versionCode\s*:\s*(\d+)\s*$', corps)
+              vc = int(m.group(1)) if m else int(r['tag_name'].rsplit('-nh', 1)[1])
+              u = re.search(r'(?im)^\s*upstream\s*:\s*(\S+)\s*$', corps)
+              if vc > meilleur[0]: meilleur = (vc, u.group(1) if u else '')
+          print(meilleur[0], meilleur[1])
+          PY
+          read -r dernier_vc dernier_upstream < precedent.txt || true
+          echo "Officiel : $tag — dernière publication nanoMuse Hermes : versionCode ${dernier_vc:-0}, upstream ${dernier_upstream:-aucun}"
+          construire=true
+          if [ "$tag" = "${dernier_upstream:-}" ] && [ "$FORCER" != true ]; then
+            construire=false
+            echo "Déjà à jour (upstream $tag déjà publié) : rien à faire." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "construire=$construire" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+          echo "dernier_vc=${dernier_vc:-0}" >> "$GITHUB_OUTPUT"
+          echo "Décision : construire=$construire (forcer=$FORCER)"
+
+  hermes:
+    name: Dernière version de Hermes Agent
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      tag: ${{ steps.h.outputs.tag }}
+    steps:
+      - id: h
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          t=$(gh api repos/NousResearch/hermes-agent/releases/latest --jq .tag_name 2>/dev/null || echo inconnue)
+          echo "Hermes Agent officiel : $t"
+          echo "tag=${t:-inconnue}" >> "$GITHUB_OUTPUT"
+
+  construire:
+    name: Construire, signer, vérifier, publier
+    needs: [verifier, hermes]
+    if: always() && needs.verifier.result == 'success' && needs.verifier.outputs.construire == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      TAG_OFFICIEL: ${{ needs.verifier.outputs.tag }}
+      VERSION_OFFICIELLE: ${{ needs.verifier.outputs.version }}
+      DERNIER_VC: ${{ needs.verifier.outputs.dernier_vc }}
+      HERMES_TAG: ${{ needs.hermes.outputs.tag }}
+    steps:
+      - name: Dépôt nanoMuse Hermes
+        uses: actions/checkout@v4
+        with:
+          path: nmh
+
+      - name: Dépôt officiel nanoMuse
+        uses: actions/checkout@v4
+        with:
+          repository: nano-muse/nanoMuse
+          path: up
+          fetch-depth: 0
+
+      - name: Choisir la base et appliquer le correctif
+        id: base
+        working-directory: up
+        run: |
+          set -euo pipefail
+          base_correctif=$(tr -d '[:space:]' < ../nmh/ci/patches/BASE)
+          commit_tag=$(git rev-parse "$TAG_OFFICIEL^{commit}")
+          # Le correctif a été écrit sur un commit officiel ; si la version publiée est plus ANCIENNE que ce
+          # commit (le tag en est un ancêtre), revenir au tag supprimerait du code dont le correctif dépend :
+          # on construit alors sur ce commit. Sinon (nouvelle version), on construit sur le tag.
+          if [ "$commit_tag" != "$base_correctif" ] && git merge-base --is-ancestor "$commit_tag" "$base_correctif"; then
+            ref="$base_correctif"; echo "Le tag $TAG_OFFICIEL est antérieur à la base du correctif : construction sur $base_correctif"
+          else
+            ref="$commit_tag"; echo "Construction sur le tag $TAG_OFFICIEL ($commit_tag)"
+          fi
+          git -c advice.detachedHead=false checkout -q "$ref"
+          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          git config user.name "kenete2001-png"
+          git config user.email "197636364+kenete2001-png@users.noreply.github.com"
+          if ! git am --3way ../nmh/ci/patches/*.patch > ../am.log 2>&1; then
+            cat ../am.log
+            git diff --name-only --diff-filter=U > ../conflits.txt || true
+            git am --abort || true
+            echo "::error::Le correctif nanoMuse Hermes ne s'applique pas sur $TAG_OFFICIEL"
+            exit 1
+          fi
+          cat ../am.log
+          git log --oneline -2
+
+      - name: Ouvrir un ticket (correctif en conflit)
+        if: failure() && steps.base.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          titre="Correctif nanoMuse Hermes en conflit avec la version officielle $TAG_OFFICIEL"
+          {
+            echo "La reconstruction automatique s'est arrêtée : le correctif \`ci/patches/*.patch\` ne s'applique pas (git am --3way) sur nanoMuse $TAG_OFFICIEL."
+            echo
+            echo "Rien n'a été publié : la version précédente de nanoMuse Hermes reste la dernière publication."
+            echo
+            echo "Fichiers en conflit :"
+            sed 's/^/- `/; s/$/`/' conflits.txt 2>/dev/null || true
+            echo
+            echo "Exécution : $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo
+            echo "À faire : rebaser le correctif sur $TAG_OFFICIEL, mettre à jour ci/patches/ (et ci/patches/BASE), puis relancer le workflow « Reconstruire nanoMuse Hermes »."
+          } > ticket.md
+          if gh issue list -R "$GITHUB_REPOSITORY" --state open --search "$titre in:title" --json title --jq '.[].title' | grep -Fxq "$titre"; then
+            echo "Ticket déjà ouvert : $titre"
+          else
+            gh issue create -R "$GITHUB_REPOSITORY" --title "$titre" --body-file ticket.md
+          fi
+
+      - name: Numéros de version
+        id: v
+        run: |
+          set -euo pipefail
+          vc=$((100 + GITHUB_RUN_NUMBER))
+          [ "$vc" -gt "${DERNIER_VC:-0}" ] || vc=$((DERNIER_VC + 1))
+          nom="$VERSION_OFFICIELLE-nh$vc"
+          f=up/android/src/android/app/build.gradle.kts
+          sed -i -E "s/^([[:space:]]*versionCode = )[0-9]+/\1$vc/; s/^([[:space:]]*versionName = )\"[^\"]*\"/\1\"$nom\"/" "$f"
+          grep -qE "^[[:space:]]*versionCode = $vc\$" "$f" && grep -qF "versionName = \"$nom\"" "$f" && grep -qF "applicationId = \"$APPLICATION_ID\"" "$f" \
+            || { echo "::error::versionCode/versionName/applicationId introuvables dans $f"; exit 1; }
+          grep -nE 'applicationId|versionCode|versionName' "$f" | head -5
+          echo "vc=$vc" >> "$GITHUB_OUTPUT"
+          echo "nom=$nom" >> "$GITHUB_OUTPUT"
+          echo "tag=v$nom" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+          cache-dependency-path: up/android/deps/rclone-mobile/go.sum
+
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platforms;android-36 build-tools;35.0.0 cmake;3.22.1 ndk;${{ env.NDK_VERSION }}
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Natifs (proot, rootfs Alpine, rclone.aar) — construction officielle
+        id: natifs
+        continue-on-error: true
+        working-directory: up
+        env:
+          GOTOOLCHAIN: auto
+        run: |
+          set -euo pipefail
+          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/$NDK_VERSION"
+          export GOROOT="$(go env GOROOT)" GOPATH="$(go env GOPATH)"
+          export PATH="$GOPATH/bin:$PATH"
+          bash scripts/android/build-natives.sh
+
+      - name: Natifs — repli sur l'archive en cache (release natifs-cache)
+        if: steps.natifs.outcome != 'success'
+        working-directory: up
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release download natifs-cache -R "$GITHUB_REPOSITORY" -p 'natifs-android.tar.gz*' -D "$RUNNER_TEMP"
+          (cd "$RUNNER_TEMP" && sha256sum -c natifs-android.tar.gz.sha256)
+          tar -xzf "$RUNNER_TEMP/natifs-android.tar.gz"
+
+      - name: Natifs — contrôle et archive
+        id: natifs_bilan
+        working-directory: up
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE: ${{ steps.natifs.outcome == 'success' && 'construits sur le runner (scripts/android/build-natives.sh officiel)' || 'archive en cache (release natifs-cache)' }}
+        run: |
+          set -euo pipefail
+          A=android/src/android/app
+          fichiers="$A/libs/rclone.aar $A/src/main/assets/proot-aarch64 $A/src/main/assets/alpine-minirootfs.tar.gz $(ls $A/src/main/jniLibs/arm64-v8a/libproot*.so)"
+          ls -la $fichiers
+          sha256sum $fichiers
+          echo "source=$SOURCE" >> "$GITHUB_OUTPUT"
+          echo "Natifs : $SOURCE" >> "$GITHUB_STEP_SUMMARY"
+          [ -f "$A/provider-customization.properties" ] || cp "$A/provider-customization.properties.example" "$A/provider-customization.properties"
+          if [ "${{ steps.natifs.outcome }}" = success ]; then
+            # Archive de repli tenue à jour par le workflow lui-même (préversion, jamais « latest »).
+            tar -czf "$RUNNER_TEMP/natifs-android.tar.gz" $fichiers
+            (cd "$RUNNER_TEMP" && sha256sum natifs-android.tar.gz > natifs-android.tar.gz.sha256)
+            gh release view natifs-cache -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+              gh release create natifs-cache -R "$GITHUB_REPOSITORY" --target main --prerelease --latest=false \
+                --title "Natifs Android (cache de secours)" \
+                --notes "Archive des fichiers natifs (proot, rootfs Alpine, rclone.aar) construits par le workflow à partir des scripts officiels. Sert de repli si leur construction échoue. Ce n'est pas une version de l'app."
+            gh release upload natifs-cache -R "$GITHUB_REPOSITORY" --clobber "$RUNNER_TEMP/natifs-android.tar.gz" "$RUNNER_TEMP/natifs-android.tar.gz.sha256"
+          fi
+
+      - name: Tests unitaires
+        working-directory: up/android/src/android
+        run: |
+          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/$NDK_VERSION"
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          ./gradlew :app:testDebugUnitTest --tests 'io.github.kenete.nanohermes.*' --tests 'io.github.nanomuse.*' \
+            --console=plain --no-daemon
+
+      - name: Résumé des tests
+        if: always() && steps.base.outcome == 'success'
+        working-directory: up/android/src/android/app/build/test-results/testDebugUnitTest
+        run: |
+          python3 - <<'PY'
+          import glob, xml.etree.ElementTree as ET
+          t = f = e = s = 0
+          for p in glob.glob('*.xml'):
+              r = ET.parse(p).getroot(); t += int(r.get('tests', 0)); f += int(r.get('failures', 0)); e += int(r.get('errors', 0)); s += int(r.get('skipped', 0))
+          print(f"TESTS total={t} echecs={f} erreurs={e} ignores={s}")
+          PY
+
+      - name: Déchiffrer la clé de signature
+        env:
+          SIGNING_PASSPHRASE: ${{ secrets.SIGNING_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          [ -n "$SIGNING_PASSPHRASE" ] || { echo "::error::secret SIGNING_PASSPHRASE absent"; exit 1; }
+          d="$RUNNER_TEMP/signature"; install -d -m 700 "$d"
+          gpg --batch --quiet --pinentry-mode loopback --passphrase "$SIGNING_PASSPHRASE" -d nmh/ci/signing.tar.gz.gpg | tar -xz -C "$d"
+          sed -i -E "s#^storeFile=.*#storeFile=$d/kmuse-release.jks#" "$d/keystore.properties"
+          install -m 600 "$d/keystore.properties" up/android/keystore.properties
+          echo "Clé déchiffrée dans un dossier temporaire (contenu non affiché)."
+
+      - name: Construire l'APK release
+        working-directory: up/android/src/android
+        run: |
+          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/$NDK_VERSION"
+          ./gradlew :app:assembleRelease --console=plain --no-daemon
+          ls -la app/build/outputs/apk/release/
+
+      - name: Vérifier (deux méthodes)
+        id: verif
+        env:
+          VC: ${{ steps.v.outputs.vc }}
+          NOM: ${{ steps.v.outputs.nom }}
+        run: |
+          set -euo pipefail
+          bt="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)"
+          apk="nanoMuse-Hermes-$NOM.apk"
+          cp up/android/src/android/app/build/outputs/apk/release/app-release.apk "$apk"
+          sha256sum "$apk" > "$apk.sha256"
+          sha=$(cut -d' ' -f1 "$apk.sha256")
+          echo "TAILLE $(stat -c %s "$apk") SHA256 $sha"
+          echo "== Méthode A : apksigner + aapt2"
+          "$bt/apksigner" verify --verbose --print-certs "$apk" | tee verif-A.txt
+          certA=$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' verif-A.txt)
+          [ "$certA" = "$CERT_ATTENDU" ] || { echo "::error::certificat (A) $certA ≠ attendu"; exit 1; }
+          "$bt/aapt2" dump badging "$apk" | grep -E "^package:|application-label:|native-code" | tee badging.txt
+          grep -qE "^package: name='$APPLICATION_ID' versionCode='$VC' versionName='$NOM'" badging.txt \
+            || { echo "::error::badging inattendu"; exit 1; }
+          echo "VERIF_A_OK cert=$certA"
+          echo "== Méthode B : lecture Python du bloc de signature v2 + openssl + manifeste AXML"
+          python3 nmh/ci/verif_apk.py "$apk" "$sha" "$CERT_ATTENDU" | tee verif-B.txt
+          grep -qx VERIF_B_OK verif-B.txt || { echo "::error::vérification B en échec"; exit 1; }
+          grep -qx "package $APPLICATION_ID versionCode $VC versionName $NOM" verif-B.txt || { echo "::error::manifeste (B) inattendu"; exit 1; }
+          echo "apk=$apk" >> "$GITHUB_OUTPUT"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "taille=$(stat -c %s "$apk")" >> "$GITHUB_OUTPUT"
+          echo "APK $apk — $(stat -c %s "$apk") o — SHA-256 $sha — certificat $certA (A et B concordent)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publier
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.v.outputs.tag }}
+          VC: ${{ steps.v.outputs.vc }}
+          NOM: ${{ steps.v.outputs.nom }}
+          APK: ${{ steps.verif.outputs.apk }}
+          SHA: ${{ steps.verif.outputs.sha }}
+          COMMIT: ${{ steps.base.outputs.commit }}
+          NATIFS: ${{ steps.natifs_bilan.outputs.source }}
+        run: |
+          set -euo pipefail
+          {
+            echo "nanoMuse Hermes $NOM : nanoMuse officiel $TAG_OFFICIEL + Hermes Agent (Ubuntu 24.04 sous PRoot)."
+            echo
+            echo "versionCode: $VC"
+            echo "upstream: $TAG_OFFICIEL"
+            echo "upstream-commit: $COMMIT"
+            echo
+            echo "- Reconstruit automatiquement à partir de la version officielle de nanoMuse, correctif nanoMuse Hermes rejoué dessus."
+            echo "- Signé avec la clé du projet (certificat SHA-256 $CERT_ATTENDU), vérifié par apksigner et par une lecture indépendante du bloc de signature."
+            echo "- SHA-256 de l'APK : $SHA"
+            echo "- Pack Hermes (Ubuntu + Hermes Agent, téléchargé au premier lancement) : $PACK_HERMES_URL"
+            echo "- Dernière version officielle de Hermes Agent : $HERMES_TAG (Hermes se met à jour depuis l'app, bouton « Mettre à jour Hermes »)."
+            echo "- Fichiers natifs : $NATIFS."
+            echo "- La mise à jour garde l'Ubuntu et les données."
+          } > notes.md
+          cat notes.md
+          gh release create "$TAG" -R "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --latest \
+            --title "nanoMuse Hermes $NOM" --notes-file notes.md "$APK" "$APK.sha256"
+          gh release view "$TAG" -R "$GITHUB_REPOSITORY" --json tagName,isPrerelease,assets \
+            --jq '{tagName,isPrerelease,assets:[.assets[]|{name,size}]}'
+          echo "Publié : $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$TAG" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Effacer la clé déchiffrée
+        if: always()
+        run: |
+          for f in "$RUNNER_TEMP"/signature/* up/android/keystore.properties; do
+            [ -f "$f" ] && shred -u -z "$f" && echo "effacé : $(basename "$f")"
+          done
+          rm -rf "$RUNNER_TEMP/signature"
