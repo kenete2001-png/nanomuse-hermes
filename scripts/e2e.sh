@@ -13,7 +13,7 @@ APK=$(ls dist/*.apk | head -1)
 adb shell settings put global package_verifier_enable 0 >/dev/null 2>&1
 echo "install: $(adb install -r -g "$APK" 2>&1 | tail -1)" | tee -a e2e/summary.txt
 adb logcat -c
-adb shell am start -W -n "$PKG/.MainActivity" | tail -2
+adb shell am start -W -n "$PKG/io.github.hermesandroid.MainActivity" | tail -2
 ok=0
 start=$(date +%s)
 for i in $(seq 1 150); do
