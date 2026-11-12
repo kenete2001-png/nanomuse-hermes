@@ -1,0 +1,5 @@
+# Hermes Android runtime this repo builds against by default (shell syntax).
+# Leave the version empty so CI resolves the current canary package when older
+# pinned snapshots have rotated out of the upstream repository.
+HERMES_RUNTIME_CHANNEL=canary
+HERMES_RUNTIME_VERSION=
