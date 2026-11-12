@@ -49,7 +49,7 @@ class PayloadInstaller(private val context: Context) {
         var written = 0L
         var lastReport = 0L
         val buffer = ByteArray(256 * 1024)
-        progress(0f, "解压运行环境")
+        progress(0f, "Décompression du moteur")
 
         ZipInputStream(BufferedInputStream(context.assets.open(ZIP_ASSET), 1 shl 20)).use { zip ->
             while (true) {
@@ -72,7 +72,7 @@ class PayloadInstaller(private val context: Context) {
                 }
                 if (written - lastReport > 4L * 1024 * 1024) {
                     lastReport = written
-                    progress((written.toFloat() / total).coerceAtMost(0.97f), "解压运行环境")
+                    progress((written.toFloat() / total).coerceAtMost(0.97f), "Décompression du moteur")
                 }
             }
         }
@@ -85,7 +85,7 @@ class PayloadInstaller(private val context: Context) {
         val prefixDir = "$finalRoot/" + placeholders.optString("prefix_dir", "prefix")
         fun resolve(value: String) = value.replace(rootPh, finalRoot).replace(prefixPh, prefixDir)
 
-        progress(0.97f, "配置运行环境")
+        progress(0.97f, "Configuration du moteur")
         val rewrite = manifest.getJSONArray("rewrite")
         for (i in 0 until rewrite.length()) {
             val file = File(staging, rewrite.getString(i))
@@ -124,13 +124,13 @@ class PayloadInstaller(private val context: Context) {
 
         File(staging, ID_FILE).writeText(manifest.getString("payload_id"))
 
-        progress(0.99f, "切换运行环境")
+        progress(0.99f, "Activation du moteur")
         if (root.exists() && !root.renameTo(old)) {
             FileTools.deleteTree(root)
         }
-        if (!staging.renameTo(root)) throw IOException("无法启用新的运行环境")
+        if (!staging.renameTo(root)) throw IOException("Impossible d’activer le nouveau moteur")
         FileTools.deleteTree(old)
-        progress(1f, "运行环境已就绪")
+        progress(1f, "Moteur prêt")
     }
 
     private fun checkEntryName(name: String) {

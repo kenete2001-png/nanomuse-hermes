@@ -118,7 +118,7 @@
         }
         i++; // closing fence (or EOF while streaming)
         out.push('<div class="code"><div class="code-bar"><span>' + (lang || 'code') +
-          '</span><button class="copy" type="button">复制</button></div><pre><code>' +
+          '</span><button class="copy" type="button">Copier</button></div><pre><code>' +
           body.join('\n') + '</code></pre></div>');
         continue;
       }

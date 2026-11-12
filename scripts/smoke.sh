@@ -20,6 +20,12 @@ for mode in ld-path runpath-only; do
   "$S/files/run.sh" --exec npm --version 2>&1 | first npm
   "$S/files/run.sh" --exec rg --version 2>&1 | first rg
   "$S/files/run.sh" --exec ffmpeg -version 2>&1 | first ffmpeg
+  "$S/files/run.sh" --exec bash --version 2>&1 | first bash
+  "$S/files/run.sh" --exec git --version 2>&1 | first git
+  out=$("$S/files/run.sh" --exec bash -c 'set -e; d="$TMPDIR/gt$$"; git init -q "$d"; cd "$d"; git config user.email t@t; git config user.name t; printf "bonjour\n" > a.txt; git add a.txt; git commit -qm essai; l=$(git log --oneline); [[ "$l" == *essai* ]] && echo SHELL_GIT_OK' 2>&1)
+  case "$out" in *SHELL_GIT_OK*) echo "bash+git local -> OK" ;; *) echo "bash+git local -> ECHEC: $out"; RC=1 ;; esac
+  out=$("$S/files/run.sh" --exec git ls-remote https://github.com/NousResearch/hermes-agent.git HEAD 2>&1)
+  case "$out" in *HEAD*) echo "git https -> OK" ;; *) echo "git https -> ECHEC: $out"; RC=1 ;; esac
   "$S/files/run.sh" > "$S/server-$mode.log" 2>&1 &
   PID=$!
   if ! "$S/files/run.sh" --py "$S/smoke_client.py" "$PORT" smoke-token; then

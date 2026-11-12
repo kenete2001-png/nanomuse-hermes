@@ -1,15 +1,15 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="fr">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
-  <meta name="color-scheme" content="light">
-  <meta name="theme-color" content="#ffffff">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#06071f">
   <title>Hermes</title>
   <script>
     try {
-      document.documentElement.dataset.theme = localStorage.getItem('hermes.android.theme') || 'sage';
-      localStorage.setItem('hermes-locale', 'zh');
+      document.documentElement.dataset.theme = 'nuit';
+      localStorage.setItem('hermes-locale', 'fr');
     } catch (e) {}
   </script>
   <link rel="stylesheet" href="app.css">
@@ -18,79 +18,91 @@
 <body>
 <div id="app">
   <header id="topbar">
-    <button id="btn-sessions" class="icon" type="button" aria-label="会话列表"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg></button>
-    <div class="title"><div id="title">Hermes</div><div id="subtitle"><span id="conn-dot" class="dot"></span><span id="conn-text">连接中…</span></div></div>
-    <button id="btn-new" class="icon" type="button" aria-label="新对话"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+    <button id="btn-sessions" class="icon" type="button" aria-label="Conversations"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg></button>
+    <div class="title"><div id="title">Hermes</div><div id="subtitle"><span id="conn-dot" class="dot"></span><span id="conn-text">Connexion…</span></div></div>
+    <button id="btn-new" class="icon" type="button" aria-label="Nouvelle conversation"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
   </header>
 
   <main>
-    <section id="view-chat" class="view active" aria-label="对话">
+    <section id="view-chat" class="view active" aria-label="Chat">
       <div id="banner" hidden></div>
       <div id="messages">
         <div id="empty">
           <div class="empty-mark">H</div>
-          <h2>有什么可以帮你？</h2>
-          <p>Hermes 智能体完全运行在这台手机上。它能联网检索、读写文件、执行命令、使用技能并记住你的偏好。</p>
+          <h2>Que puis-je faire pour toi ?</h2>
+          <p>Hermes tourne entièrement sur ce téléphone. Il cherche sur le web, lit et écrit des fichiers, exécute des commandes, utilise ses compétences et se souvient de toi.</p>
           <div class="suggest">
-            <button type="button" data-prompt="帮我总结一下今天的科技新闻"><span class="chip-ic"><svg viewBox="0 0 24 24"><path d="M5 4h11a3 3 0 013 3v12a1 1 0 01-1 1H6a2 2 0 01-2-2V5a1 1 0 011-1zM8 8h7M8 12h7M8 16h4"/></svg></span>总结今天的科技新闻</button>
-            <button type="button" data-prompt="你能做哪些事？列出你当前可用的工具和技能"><span class="chip-ic"><svg viewBox="0 0 24 24"><path d="M12 3l2.2 5.4L20 9l-4.4 3.8L17 18.5 12 15.6 7 18.5l1.4-5.7L4 9l5.8-.6z"/></svg></span>你能做什么？</button>
-            <button type="button" data-prompt="帮我写一个每天早上 8 点提醒我喝水的定时任务"><span class="chip-ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="7"/><path d="M12 10v3l2 2M9 3h6"/></svg></span>创建一个定时提醒</button>
+            <button type="button" data-prompt="Résume-moi l’actualité tech du jour"><span class="chip-ic"><svg viewBox="0 0 24 24"><path d="M5 4h11a3 3 0 013 3v12a1 1 0 01-1 1H6a2 2 0 01-2-2V5a1 1 0 011-1zM8 8h7M8 12h7M8 16h4"/></svg></span>Actualité tech du jour</button>
+            <button type="button" data-prompt="Que sais-tu faire ? Liste tes outils et compétences disponibles"><span class="chip-ic"><svg viewBox="0 0 24 24"><path d="M12 3l2.2 5.4L20 9l-4.4 3.8L17 18.5 12 15.6 7 18.5l1.4-5.7L4 9l5.8-.6z"/></svg></span>Que sais-tu faire ?</button>
+            <button type="button" data-prompt="Crée une routine qui me rappelle de boire de l’eau chaque jour à 8 h"><span class="chip-ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="7"/><path d="M12 10v3l2 2M9 3h6"/></svg></span>Créer une routine</button>
           </div>
         </div>
       </div>
       <form id="composer" autocomplete="off">
         <div id="attachments"></div>
         <div class="composer-row">
-          <button type="button" id="btn-attach" class="icon" aria-label="添加附件"><svg viewBox="0 0 24 24"><path d="M21 11.5l-8.6 8.6a5.5 5.5 0 01-7.8-7.8l8.6-8.6a3.7 3.7 0 015.2 5.2l-8.6 8.6a1.8 1.8 0 01-2.6-2.6l7.9-7.9"/></svg></button>
-          <textarea id="input" rows="1" placeholder="给 Hermes 发消息" enterkeyhint="send"></textarea>
-          <button type="submit" id="btn-send" class="send" aria-label="发送"><svg class="i-send" viewBox="0 0 24 24"><path d="M5 12h13M12 5l7 7-7 7"/></svg><svg class="i-stop" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="2"/></svg></button>
+          <button type="button" id="btn-attach" class="icon" aria-label="Joindre un fichier"><svg viewBox="0 0 24 24"><path d="M21 11.5l-8.6 8.6a5.5 5.5 0 01-7.8-7.8l8.6-8.6a3.7 3.7 0 015.2 5.2l-8.6 8.6a1.8 1.8 0 01-2.6-2.6l7.9-7.9"/></svg></button>
+          <textarea id="input" rows="1" placeholder="Écrire à Hermes" enterkeyhint="send"></textarea>
+          <button type="submit" id="btn-send" class="send" aria-label="Envoyer"><svg class="i-send" viewBox="0 0 24 24"><path d="M5 12h13M12 5l7 7-7 7"/></svg><svg class="i-stop" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="2"/></svg></button>
         </div>
         <input type="file" id="file" multiple hidden>
       </form>
-      <div id="boot" class="boot" hidden><div class="boot-card"><div class="empty-mark">H</div><div id="boot-title">正在准备 Hermes</div><div id="boot-text" class="muted"></div><div id="boot-progress" class="progress"><div></div></div><button type="button" id="boot-action" hidden></button><button type="button" id="boot-logs" hidden>查看日志</button></div></div>
+      <div id="boot" class="boot" hidden><div class="boot-card"><div class="empty-mark">H</div><div id="boot-title">Préparation de Hermes</div><div id="boot-text" class="muted"></div><div id="boot-progress" class="progress"><div></div></div><button type="button" id="boot-action" hidden></button><button type="button" id="boot-logs" hidden>Voir le journal</button></div></div>
     </section>
 
-    <section id="view-console" class="view" aria-label="控制台">
-      <iframe id="console-frame" title="Hermes 控制台"></iframe>
-      <div id="console-offline" class="offline">Hermes 还没有运行，控制台暂不可用。</div>
+    <section id="view-agent" class="view" aria-label="Agent">
+      <div class="scroll hub">
+        <div class="hub-hero"><div class="hub-blob"><i></i><i></i></div><div class="hub-name">Hermes</div><div class="hub-sub" id="hub-sub">Sur ce téléphone</div></div>
+<div class="hub-card"><button type="button" class="hub-row" data-console="/models"><span class="hub-ic"><svg viewBox="0 0 24 24"><path d="M7 7h10v10H7zM9 3v4M15 3v4M9 17v4M15 17v4M3 9h4M3 15h4M17 9h4M17 15h4"/></svg></span><span class="hub-label">Modèle</span><span class="hub-chev"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span></button><button type="button" class="hub-row" data-console="/env"><span class="hub-ic"><svg viewBox="0 0 24 24"><path d="M14 7a4 4 0 11-3.9 4.9L4 18v2h3v-2h2v-2h2l1.1-1.1A4 4 0 0114 7z"/></svg></span><span class="hub-label">Clés API</span><span class="hub-chev"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span></button><button type="button" class="hub-row" data-console="/skills"><span class="hub-ic"><svg viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9zM12 12l8-4.5M12 12v9M12 12L4 7.5"/></svg></span><span class="hub-label">Compétences</span><span class="hub-chev"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span></button></div><div class="hub-sec">Intégrations</div><div class="hub-card"><button type="button" class="hub-row" data-console="/channels"><span class="hub-ic"><svg viewBox="0 0 24 24"><path d="M12 5a2 2 0 100 .1M5 12a2 2 0 100 .1M19 12a2 2 0 100 .1M12 19a2 2 0 100 .1M12 7v10M7 12h10"/></svg></span><span class="hub-label">Connexions</span><span class="hub-chev"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span></button><button type="button" class="hub-row" data-console="/plugins"><span class="hub-ic"><svg viewBox="0 0 24 24"><path d="M10 4a2 2 0 014 0v2h4v4h-2a2 2 0 000 4h2v4h-4v-2a2 2 0 00-4 0v2H6v-4H4a2 2 0 010-4h2V6h4z"/></svg></span><span class="hub-label">Plugins</span><span class="hub-chev"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span></button><button type="button" class="hub-row" data-console="/mcp"><span class="hub-ic"><svg viewBox="0 0 24 24"><path d="M9 2v5M15 2v5M6 7h12v4a6 6 0 01-12 0zM12 17v5"/></svg></span><span class="hub-label">MCP</span><span class="hub-chev"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span></button><button type="button" class="hub-row" data-console="/webhooks"><span class="hub-ic"><svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/></svg></span><span class="hub-label">Webhooks</span><span class="hub-chev"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span></button></div><div class="hub-sec">Travail</div><div class="hub-card"><button type="button" class="hub-row" data-console="/cron"><span class="hub-ic"><svg viewBox="0 0 24 24"><path d="M12 21a9 9 0 100-18 9 9 0 000 18zM12 7v5l3 2"/></svg></span><span class="hub-label">Routines</span><span class="hub-chev"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span></button><button type="button" class="hub-row" data-console="/files"><span class="hub-ic"><svg viewBox="0 0 24 24"><path d="M3 6h6l2 2h10v11H3z"/></svg></span><span class="hub-label">Fichiers</span><span class="hub-chev"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span></button><button type="button" class="hub-row" data-console="/sessions"><span class="hub-ic"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg></span><span class="hub-label">Historique</span><span class="hub-chev"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span></button></div><div class="hub-sec">Agent</div><div class="hub-card"><button type="button" class="hub-row" data-editor="soul"><span class="hub-ic"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 4.8L19 9l-4.2 3.2L16 18l-4-2.8L8 18l1.2-5.8L5 9l5.2-1.2z"/></svg></span><span class="hub-label">Âme</span><span class="hub-chev"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span></button><button type="button" class="hub-row" data-editor="memory"><span class="hub-ic"><svg viewBox="0 0 24 24"><path d="M9 4a3 3 0 00-3 3 3 3 0 00-2 5 3 3 0 002 5 3 3 0 006 1V4zM15 4a3 3 0 013 3 3 3 0 012 5 3 3 0 01-2 5 3 3 0 01-6 1"/></svg></span><span class="hub-label">Mémoire</span><span class="hub-chev"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span></button><button type="button" class="hub-row" data-console="/analytics"><span class="hub-ic"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></span><span class="hub-label">Utilisation</span><span class="hub-chev"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span></button></div><div class="hub-sec">Avancé</div><div class="hub-card"><button type="button" class="hub-row" data-console="/profiles"><span class="hub-ic"><svg viewBox="0 0 24 24"><path d="M9 11a4 4 0 100-8 4 4 0 000 8zM2 21a7 7 0 0114 0M17 11a3 3 0 100-6M22 21a6 6 0 00-5-6"/></svg></span><span class="hub-label">Profils</span><span class="hub-chev"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span></button><button type="button" class="hub-row" data-console="/config"><span class="hub-ic"><svg viewBox="0 0 24 24"><path d="M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.7 1.7 0 00.3 1.8l.1.1-2 3.4-.2-.1a1.7 1.7 0 00-1.9.3 7 7 0 01-1.6.9 1.7 1.7 0 00-1 1.6V23H9v-.2a1.7 1.7 0 00-1-1.5 7 7 0 01-1.6-1 1.7 1.7 0 00-1.9-.2l-.2.1-2-3.4.2-.1a1.7 1.7 0 00.3-1.8 7 7 0 010-1.8 1.7 1.7 0 00-.3-1.8l-.2-.1 2-3.4.2.1a1.7 1.7 0 001.9-.3 7 7 0 011.6-.9A1.7 1.7 0 009 1.2V1h4v.2a1.7 1.7 0 001 1.5 7 7 0 011.6 1 1.7 1.7 0 001.9.2l.2-.1 2 3.4-.2.1a1.7 1.7 0 00-.3 1.8 7 7 0 010 1.8z"/></svg></span><span class="hub-label">Configuration</span><span class="hub-chev"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span></button><button type="button" class="hub-row" data-console="/logs"><span class="hub-ic"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6zM9 9h6M9 13h6M9 17h4"/></svg></span><span class="hub-label">Journaux</span><span class="hub-chev"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span></button></div>
+      </div>
+    </section>
+    <section id="view-console" class="view" aria-label="Tableau de bord">
+      <iframe id="console-frame" title="Tableau de bord Hermes"></iframe>
+      <div id="console-offline" class="offline">Hermes ne tourne pas encore, le tableau de bord est indisponible.</div>
     </section>
 
-    <section id="view-status" class="view" aria-label="运行状态">
+    <section id="view-status" class="view" aria-label="Système">
       <div class="scroll">
         <div class="card ai-setup-card">
-          <div class="label">AI 模型设置</div>
-          <div class="ai-setup-title">先登录账号，再选择模型</div>
-          <div class="ai-setup-desc">没有 API Key 也可以。优先使用 Hermes 官方 OAuth 登录流程，登录凭据由 Hermes 管理。</div>
-          <div class="ai-step"><span>1</span><div><strong>登录模型服务</strong><small>ChatGPT / Codex、Claude、Nous、OpenRouter 等支持项会由 Hermes 自动列出。</small></div><button type="button" id="ai-oauth" class="primary">OAuth 登录</button></div>
-          <div class="ai-step"><span>2</span><div><strong>选择主模型</strong><small>登录成功后，从可用模型中选择一个设为主模型。</small></div><button type="button" id="ai-models">选择模型</button></div>
-          <div class="ai-step"><span>3</span><div><strong>回到对话测试</strong><small>发送一句消息确认模型已经可以正常工作。</small></div><button type="button" id="ai-test">开始测试</button></div>
-          <details class="ai-fallback"><summary>没有 OAuth？使用 API Key</summary><p>部分服务商只提供 API Key。可以作为备用方式配置。</p><button type="button" id="ai-apikey">配置 API Key</button></details>
+          <div class="label">Modèle d’IA</div>
+          <div class="ai-setup-title">Ta clé API, puis ton modèle</div>
+          <div class="ai-setup-desc">Colle ta clé API, choisis ton modèle, et c’est prêt. Tes clés restent sur ce téléphone.</div>
+          <div class="ai-step"><span>1</span><div><strong>Ajouter ta clé API</strong><small>Ajoute le fournisseur de ton choix (OpenRouter, DeepSeek, OpenAI, Anthropic, Nous, ou un fournisseur compatible OpenAI).</small></div><button type="button" id="ai-oauth" class="primary">Se connecter</button></div>
+          <div class="ai-step"><span>2</span><div><strong>Choisir le modèle</strong><small>Choisis le modèle principal parmi ceux de ton fournisseur.</small></div><button type="button" id="ai-models">Choisir</button></div>
+          <div class="ai-step"><span>3</span><div><strong>Tester dans le chat</strong><small>Envoie un message pour vérifier que tout marche.</small></div><button type="button" id="ai-test">Tester</button></div>
+          <details class="ai-fallback"><summary>Connexion par compte (OAuth)</summary><p>Certains fournisseurs proposent aussi une connexion par compte (OAuth).</p><button type="button" id="ai-apikey">Ajouter ma clé API</button></details>
         </div>
 
         <div class="card">
-          <div class="card-head"><div><div class="label">本机运行时</div><div id="st-phase" class="big">—</div></div><span id="st-dot" class="dot big-dot"></span></div>
+          <div class="card-head"><div><div class="label">Moteur local</div><div id="st-phase" class="big">—</div></div><span id="st-dot" class="dot big-dot"></span></div>
           <div id="st-message" class="muted"></div><div id="st-progress" class="progress" hidden><div></div></div>
-          <dl class="kv"><dt>地址</dt><dd id="st-addr">—</dd><dt>进程</dt><dd id="st-pid">—</dd><dt>运行时版本</dt><dd id="st-payload">—</dd><dt>App 版本</dt><dd id="st-app">—</dd><dt>设备</dt><dd id="st-device">—</dd></dl>
-          <div class="buttons"><button type="button" id="btn-start" class="primary">启动</button><button type="button" id="btn-restart">重启</button><button type="button" id="btn-stop" class="danger">停止</button></div>
+          <dl class="kv"><dt>Adresse</dt><dd id="st-addr">—</dd><dt>Processus</dt><dd id="st-pid">—</dd><dt>Version du moteur</dt><dd id="st-payload">—</dd><dt>Version de l’app</dt><dd id="st-app">—</dd><dt>Appareil</dt><dd id="st-device">—</dd></dl>
+          <div class="buttons"><button type="button" id="btn-start" class="primary">Démarrer</button><button type="button" id="btn-restart">Redémarrer</button><button type="button" id="btn-stop" class="danger">Arrêter</button></div>
         </div>
 
-        <div class="card"><div class="label">外观</div><div class="themes" id="themes"><button type="button" class="theme-opt" data-theme="sage"><span class="sw"><i style="background:#f5f4ef"></i><i style="background:#e2eeea"></i><i style="background:#2e6e64"></i></span>雾松青</button><button type="button" class="theme-opt" data-theme="clay"><span class="sw"><i style="background:#f7f3ee"></i><i style="background:#f5e6dd"></i><i style="background:#a85a36"></i></span>陶土</button><button type="button" class="theme-opt" data-theme="lavender"><span class="sw"><i style="background:#f6f5fa"></i><i style="background:#ece9fb"></i><i style="background:#6250cc"></i></span>雾紫</button></div></div>
+        <div class="card"><div class="label">Arrière-plan</div><label class="switch-row"><span>Garder le processeur actif<small>Les longues tâches et les routines ne sont pas interrompues par la veille</small></span><input type="checkbox" id="opt-awake"></label><label class="switch-row"><span>Démarrer à l’ouverture de l’app<small>Sinon, démarre Hermes depuis cette page</small></span><input type="checkbox" id="opt-autostart"></label><div class="switch-row" id="battery-row"><span>Optimisation de la batterie<small id="battery-text">—</small></span><button type="button" id="btn-battery">Réglages</button></div></div>
 
-        <div class="card"><div class="label">后台运行</div><label class="switch-row"><span>运行时保持 CPU 唤醒<small>长任务、定时任务不被系统休眠打断</small></span><input type="checkbox" id="opt-awake"></label><label class="switch-row"><span>打开 App 时自动启动<small>关闭后需要在此页手动启动</small></span><input type="checkbox" id="opt-autostart"></label><div class="switch-row" id="battery-row"><span>电池优化<small id="battery-text">—</small></span><button type="button" id="btn-battery">设置</button></div></div>
-
-        <div class="card"><div class="card-head"><div class="label">日志</div><div class="buttons small"><button type="button" id="btn-log-copy">复制</button><button type="button" id="btn-log-refresh">刷新</button></div></div><pre id="log"></pre></div>
-        <p class="footnote">基于 NousResearch/hermes-agent（MIT）。AI 模型可在本页直接进入 OAuth、模型选择或 API Key 配置。</p>
+        <div class="card"><div class="card-head"><div class="label">Journal</div><div class="buttons small"><button type="button" id="btn-log-copy">Copier</button><button type="button" id="btn-log-refresh">Actualiser</button></div></div><pre id="log"></pre></div>
+        <p class="footnote">Basé sur NousResearch/hermes-agent (MIT), port Android de LeslieCoding/hermes-android (MIT).</p>
       </div>
     </section>
   </main>
 
-  <nav id="tabs"><button type="button" data-view="chat" class="active"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg><span>对话</span></button><button type="button" data-view="console"><svg viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg><span>控制台</span></button><button type="button" data-view="status"><svg viewBox="0 0 24 24"><path d="M3 12h4l3-7 4 14 3-7h4"/></svg><span>运行</span></button></nav>
+  <nav id="tabs"><button type="button" data-view="chat" class="active"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg><span>Chat</span></button><button type="button" data-view="agent"><svg viewBox="0 0 24 24"><circle cx="12" cy="6" r="2.2"/><circle cx="6" cy="13" r="2.2"/><circle cx="18" cy="13" r="2.2"/><circle cx="12" cy="19" r="2.2"/></svg><span>Agent</span></button><button type="button" data-view="console"><svg viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg><span>Tableau</span></button><button type="button" data-view="status"><svg viewBox="0 0 24 24"><path d="M3 12h4l3-7 4 14 3-7h4"/></svg><span>Système</span></button></nav>
 
-  <div id="drawer" class="drawer" hidden><div class="drawer-panel"><div class="drawer-head"><strong>会话</strong><button type="button" id="btn-drawer-new" class="pill">新对话</button></div><div id="session-list"></div></div><div class="drawer-scrim" data-close></div></div>
+  <div id="editor" class="editor" hidden>
+    <div class="editor-panel">
+      <div class="editor-head"><button type="button" id="ed-back" class="icon" aria-label="Retour"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button><strong id="ed-title">Mémoire</strong><button type="button" id="ed-save" class="pill">Enregistrer</button></div>
+      <div id="ed-tabs" class="ed-tabs"></div>
+      <p id="ed-help" class="muted ed-help"></p>
+      <textarea id="ed-text" spellcheck="false"></textarea>
+    </div>
+  </div>
+  <div id="drawer" class="drawer" hidden><div class="drawer-panel"><div class="drawer-head"><strong>Conversations</strong><button type="button" id="btn-drawer-new" class="pill">Nouvelle conversation</button></div><div id="session-list"></div></div><div class="drawer-scrim" data-close></div></div>
 </div>
 <script src="md.js"></script>
-<script src="console-i18n.js"></script>
 <script src="app.js"></script>
 <script src="model_setup.js"></script>
+<script src="hub.js"></script>
 </body>
 </html>

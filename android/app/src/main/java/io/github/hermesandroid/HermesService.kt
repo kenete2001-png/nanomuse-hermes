@@ -84,7 +84,7 @@ class HermesService : Service() {
         val installer = PayloadInstaller(this)
         try {
             if (!installer.hasPayload()) {
-                fail("这个安装包没有内置 Hermes 运行时（构建时缺少 payload）")
+                fail("Ce paquet ne contient pas le moteur Hermes (payload absent à la construction)")
                 return
             }
             val manifest = installer.manifest()
@@ -92,33 +92,33 @@ class HermesService : Service() {
             HermesRuntime.update { it.copy(payloadId = payloadId, exitCode = null) }
 
             val swept = ProcUtil.sweep(installer.root.absolutePath)
-            if (swept > 0) log("清理了 $swept 个残留进程")
+            if (swept > 0) log("$swept processus résiduels nettoyés")
 
             if (installer.needsInstall(manifest)) {
                 val need = manifest.optLong("total_bytes", 0L) + 200L * 1024 * 1024
                 val free = filesDir.usableSpace
                 if (free in 1 until need) {
-                    fail("存储空间不足：需要约 ${need / 1_000_000} MB，当前可用 ${free / 1_000_000} MB")
+                    fail("Espace insuffisant : il faut environ ${need / 1_000_000} Mo, disponible ${free / 1_000_000} Mo")
                     return
                 }
-                HermesRuntime.update { it.copy(phase = HermesRuntime.Phase.INSTALLING, progress = 0f, message = "首次运行，正在解压运行环境…") }
+                HermesRuntime.update { it.copy(phase = HermesRuntime.Phase.INSTALLING, progress = 0f, message = "Premier lancement : décompression du moteur…") }
                 installer.install(manifest) { p, label ->
                     HermesRuntime.update { it.copy(progress = p, message = label) }
                 }
-                log("运行环境已安装：$payloadId")
+                log("Moteur installé : $payloadId")
             }
             if (stopping) return
 
             try {
                 RuntimeEnv.installConsoleThemes(this)
             } catch (e: Exception) {
-                log("控制台主题写入失败：${e.message}")
+                log("Thème du tableau de bord non écrit : ${e.message}")
             }
             val port = choosePort(Prefs.port(this))
             val token = newToken()
             HermesRuntime.update {
                 it.copy(phase = HermesRuntime.Phase.STARTING, progress = -1f, port = port, token = token,
-                    message = "正在启动 Hermes…", startedAt = System.currentTimeMillis())
+                    message = "Démarrage de Hermes…", startedAt = System.currentTimeMillis())
             }
             acquireWakeLock()
 
@@ -129,7 +129,7 @@ class HermesService : Service() {
             val env = pb.environment()
             RuntimeEnv.SCRUB.forEach { env.remove(it) }
             env.putAll(RuntimeEnv.environment(this, installer.root, manifest, token))
-            log("启动：hermes dashboard --port $port")
+            log("Démarrage : hermes dashboard --port $port")
             val proc = pb.start()
             process = proc
             pid = ProcUtil.findChild(cmd[0]) ?: 0
@@ -137,23 +137,23 @@ class HermesService : Service() {
             val pump = thread(name = "hermes-log") { pumpLog(proc) }
 
             if (waitHealthy(port, proc)) {
-                HermesRuntime.update { it.copy(phase = HermesRuntime.Phase.RUNNING, message = "运行中") }
-                log("Hermes 已就绪：http://127.0.0.1:$port")
+                HermesRuntime.update { it.copy(phase = HermesRuntime.Phase.RUNNING, message = "Actif") }
+                log("Hermes est prêt : http://127.0.0.1:$port")
             }
             val code = proc.waitFor()
             pump.join(2000)
             process = null
             if (stopping) {
-                HermesRuntime.update { it.copy(phase = HermesRuntime.Phase.STOPPED, message = "已停止", exitCode = code, pid = 0) }
+                HermesRuntime.update { it.copy(phase = HermesRuntime.Phase.STOPPED, message = "Arrêté", exitCode = code, pid = 0) }
             } else {
                 val killed = code == 137 || code == 9
-                val hint = if (killed) "，可能被系统的后台限制结束" else ""
+                val hint = if (killed) ", peut-être arrêté par les limites d’arrière-plan du système" else ""
                 val now = System.currentTimeMillis()
                 crashTimes.removeIf { now - it > 10 * 60 * 1000L }
                 crashTimes.add(now)
                 if (crashTimes.size <= MAX_AUTO_RESTARTS) {
-                    log("Hermes 进程退出（代码 $code$hint），自动重启（${crashTimes.size}/$MAX_AUTO_RESTARTS）")
-                    HermesRuntime.update { it.copy(phase = HermesRuntime.Phase.STARTING, message = "正在自动重启…", exitCode = code, pid = 0) }
+                    log("Hermes s’est arrêté (code $code$hint), redémarrage automatique (${crashTimes.size}/$MAX_AUTO_RESTARTS)")
+                    HermesRuntime.update { it.copy(phase = HermesRuntime.Phase.STARTING, message = "Redémarrage automatique…", exitCode = code, pid = 0) }
                     releaseWakeLock()
                     Thread.sleep(2000L * crashTimes.size)
                     if (!stopping) {
@@ -164,10 +164,10 @@ class HermesService : Service() {
                     }
                     return
                 }
-                fail("Hermes 进程意外退出（代码 $code$hint），请查看日志", code)
+                fail("Hermes s’est arrêté de façon inattendue (code $code$hint). Consulte le journal.", code)
             }
         } catch (t: Throwable) {
-            log("错误：${t}")
+            log("Erreur : ${t}")
             fail(t.message ?: t.toString())
         } finally {
             releaseWakeLock()
@@ -193,7 +193,7 @@ class HermesService : Service() {
             }
             Thread.sleep(700)
         }
-        log("等待 Hermes 就绪超时")
+        log("Délai dépassé en attendant Hermes")
         return false
     }
 
@@ -220,7 +220,7 @@ class HermesService : Service() {
         stopping = true
         val proc = process
         if (proc != null || pid > 0) {
-            HermesRuntime.update { it.copy(phase = HermesRuntime.Phase.STOPPING, message = "正在停止…") }
+            HermesRuntime.update { it.copy(phase = HermesRuntime.Phase.STOPPING, message = "Arrêt…") }
             val target = if (pid > 0) pid else 0
             if (target > 0) ProcUtil.stopTree(target) else proc?.destroy()
             try {
@@ -231,7 +231,7 @@ class HermesService : Service() {
         worker?.join(5000)
         process = null
         pid = 0
-        HermesRuntime.update { it.copy(phase = HermesRuntime.Phase.STOPPED, message = "已停止", pid = 0) }
+        HermesRuntime.update { it.copy(phase = HermesRuntime.Phase.STOPPED, message = "Arrêté", pid = 0) }
     }
 
     private fun choosePort(preferred: Int): Int {
@@ -243,7 +243,7 @@ class HermesService : Service() {
             } catch (_: Exception) {
             }
         }
-        throw IllegalStateException("找不到可用的本地端口")
+        throw IllegalStateException("Aucun port local disponible")
     }
 
     private fun newToken(): String {

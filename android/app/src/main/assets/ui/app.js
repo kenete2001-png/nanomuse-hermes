@@ -25,7 +25,7 @@
 
   function copy(text) {
     if (bridge) { bridge.copyText(text); return; }
-    if (navigator.clipboard) navigator.clipboard.writeText(text).then(() => toast('已复制'));
+    if (navigator.clipboard) navigator.clipboard.writeText(text).then(() => toast('Copié'));
   }
 
   function textOf(value) {
@@ -40,18 +40,18 @@
 
   function clip(s, n) {
     s = String(s || '');
-    return s.length > n ? s.slice(0, n) + '\n…（已截断）' : s;
+    return s.length > n ? s.slice(0, n) + '\n… (tronqué)' : s;
   }
 
   function relTime(sec) {
     if (!sec) return '';
     const d = Date.now() / 1000 - sec;
-    if (d < 60) return '刚刚';
-    if (d < 3600) return Math.floor(d / 60) + ' 分钟前';
-    if (d < 86400) return Math.floor(d / 3600) + ' 小时前';
-    if (d < 86400 * 7) return Math.floor(d / 86400) + ' 天前';
+    if (d < 60) return 'à l’instant';
+    if (d < 3600) return Math.floor(d / 60) + ' min';
+    if (d < 86400) return Math.floor(d / 3600) + ' h';
+    if (d < 86400 * 7) return Math.floor(d / 86400) + ' j';
     const t = new Date(sec * 1000);
-    return (t.getMonth() + 1) + '月' + t.getDate() + '日';
+    return t.getDate() + '/' + (t.getMonth() + 1);
   }
 
   function fileToBase64(file) {
@@ -61,7 +61,7 @@
         const url = String(reader.result);
         resolve({ dataUrl: url, base64: url.slice(url.indexOf(',') + 1) });
       };
-      reader.onerror = () => reject(reader.error || new Error('读取文件失败'));
+      reader.onerror = () => reject(reader.error || new Error('Lecture du fichier impossible'));
       reader.readAsDataURL(file);
     });
   }
@@ -104,7 +104,7 @@
           if (settled) return;
           settled = true;
           try { ws.close(); } catch (_) { /* ignore */ }
-          reject(new Error('连接超时'));
+          reject(new Error('Délai de connexion dépassé'));
         }, 15000);
         ws.onopen = () => {
           if (settled) return;
@@ -117,7 +117,7 @@
           if (settled) return;
           settled = true;
           clearTimeout(timer);
-          reject(new Error('无法连接到 Hermes'));
+          reject(new Error('Impossible de joindre Hermes'));
         };
         ws.onclose = ev => {
           if (this.ws !== ws) return;
@@ -125,13 +125,13 @@
           this.stopPing();
           for (const call of this.pending.values()) {
             clearTimeout(call.timer);
-            call.reject(new Error('与 Hermes 的连接已断开'));
+            call.reject(new Error('Connexion à Hermes perdue'));
           }
           this.pending.clear();
           if (!settled) {
             settled = true;
             clearTimeout(timer);
-            reject(new Error('连接被关闭（' + ev.code + '）'));
+            reject(new Error('Connexion fermée (' + ev.code + ')'));
           }
           this.setState('closed');
         };
@@ -152,18 +152,18 @@
     }
 
     send(frame) {
-      if (!this.open) throw new Error('未连接到 Hermes');
+      if (!this.open) throw new Error('Non connecté à Hermes');
       this.ws.send(JSON.stringify(frame));
     }
 
     request(method, params, timeoutMs) {
       const timeout = timeoutMs == null ? 120000 : timeoutMs;
       return new Promise((resolve, reject) => {
-        if (!this.open) { reject(new Error('未连接到 Hermes')); return; }
+        if (!this.open) { reject(new Error('Non connecté à Hermes')); return; }
         const id = 'm' + (++this.nextId);
         const timer = timeout > 0 ? setTimeout(() => {
           this.pending.delete(id);
-          reject(new Error('请求超时：' + method));
+          reject(new Error('Délai dépassé : ' + method));
         }, timeout) : null;
         this.pending.set(id, { resolve, reject, timer });
         try {
@@ -206,7 +206,7 @@
           this.fail(frame.id, -32603, String(e && e.message || e));
           return;
         }
-        if (!handled) this.fail(frame.id, -32601, 'Android 客户端暂不支持此操作');
+        if (!handled) this.fail(frame.id, -32601, 'Action pas encore prise en charge sur Android');
         return;
       }
       if (frame.id != null && this.pending.has(frame.id)) {
@@ -214,7 +214,7 @@
         this.pending.delete(frame.id);
         clearTimeout(call.timer);
         if (frame.error) {
-          const err = new Error(frame.error.message || 'Hermes 请求失败');
+          const err = new Error(frame.error.message || 'La requête à Hermes a échoué');
           err.code = frame.error.code;
           err.data = frame.error.data;
           call.reject(err);
@@ -302,10 +302,10 @@
     const connected = gw.state === 'open';
     ui.connDot.className = 'dot ' + (connected ? (chat.running ? 'busy' : 'ok') : (status.phase === 'error' ? 'err' : 'busy'));
     if (!connected) {
-      ui.connText.textContent = status.phase === 'running' ? '正在连接…' : phaseLabel(status.phase);
+      ui.connText.textContent = status.phase === 'running' ? 'Connexion…' : phaseLabel(status.phase);
     } else {
       const model = chat.info && chat.info.model ? chat.info.model : '';
-      ui.connText.textContent = chat.running ? '正在思考…' : (model || '已连接');
+      ui.connText.textContent = chat.running ? 'Réflexion…' : (model || 'Connecté');
     }
   }
 
@@ -313,7 +313,7 @@
     const hasText = ui.input.value.trim().length > 0 || chat.attachments.length > 0;
     const stopMode = chat.running && !hasText;
     ui.send.classList.toggle('stop', stopMode);
-    ui.send.setAttribute('aria-label', stopMode ? '停止' : '发送');
+    ui.send.setAttribute('aria-label', stopMode ? 'Arrêter' : 'Envoyer');
     ui.send.disabled = !gw.open || (!hasText && !chat.running);
   }
 
@@ -409,7 +409,7 @@
     if (!turn.reason) {
       const det = document.createElement('details');
       det.className = 'reasoning';
-      det.appendChild(el('summary', null, '思考过程'));
+      det.appendChild(el('summary', null, 'Raisonnement'));
       det.appendChild(el('div', 'rtext'));
       if (turn.seg) turn.wrap.insertBefore(det, turn.seg); else turn.wrap.appendChild(det);
       turn.reason = det;
@@ -424,9 +424,9 @@
     const det = document.createElement('details');
     det.className = 'tool' + (running ? ' running' : '');
     const sum = el('summary');
-    sum.appendChild(el('span', 'tname', name || '工具'));
+    sum.appendChild(el('span', 'tname', name || 'outil'));
     sum.appendChild(el('span', 'tctx', context || ''));
-    sum.appendChild(el('span', 'tstate', running ? ' ' : '完成'));
+    sum.appendChild(el('span', 'tstate', running ? ' ' : 'Terminé'));
     det.appendChild(sum);
     return det;
   }
@@ -434,7 +434,7 @@
   function setToolResult(card, text, failed) {
     card.classList.remove('running');
     if (failed) card.classList.add('failed');
-    card.querySelector('.tstate').textContent = failed ? '失败' : '完成';
+    card.querySelector('.tstate').textContent = failed ? 'Échec' : 'Terminé';
     let pre = card.querySelector('pre');
     if (text) {
       if (!pre) { pre = el('pre'); card.appendChild(pre); }
@@ -500,31 +500,31 @@
     }
     sealSegment(turn);
     if (p && p.status === 'error') {
-      const why = p.error || p.failure_reason || p.warning || '本轮对话出错';
+      const why = p.error || p.failure_reason || p.warning || 'Erreur pendant cette réponse';
       const box = el('div', 'body');
       box.style.color = 'var(--err)';
       box.textContent = '⚠ ' + why;
       turn.wrap.appendChild(box);
     } else if (p && p.status === 'interrupted') {
-      turn.wrap.appendChild(el('div', 'meta', '已中断'));
+      turn.wrap.appendChild(el('div', 'meta', 'Interrompu'));
     } else if (p && p.warning) {
       turn.wrap.appendChild(el('div', 'meta', p.warning));
     }
     const meta = el('div', 'meta');
     const full = turn.allText.join('\n\n');
     if (full) {
-      const copyBtn = el('button', null, '复制');
+      const copyBtn = el('button', null, 'Copier');
       copyBtn.type = 'button';
       copyBtn.onclick = () => copy(full);
       meta.appendChild(copyBtn);
-      const shareBtn = el('button', null, '分享');
+      const shareBtn = el('button', null, 'Partager');
       shareBtn.type = 'button';
       shareBtn.onclick = () => bridge && bridge.shareText(full);
       if (bridge) meta.appendChild(shareBtn);
     }
     const usage = p && p.usage;
     if (usage && (usage.total_tokens || usage.output_tokens)) {
-      meta.appendChild(el('span', null, (usage.total_tokens || ((usage.input_tokens || 0) + (usage.output_tokens || 0))) + ' 令牌'));
+      meta.appendChild(el('span', null, (usage.total_tokens || ((usage.input_tokens || 0) + (usage.output_tokens || 0))) + ' jetons'));
     }
     if (meta.childNodes.length) turn.wrap.appendChild(meta);
     chat.turn = null;
@@ -606,13 +606,13 @@
         onToolComplete(p);
         break;
       case 'tool.generating':
-        onStatus({ text: '正在准备调用 ' + (p.name || '工具') + '…' });
+        onStatus({ text: 'Préparation de ' + (p.name || 'outil') + '…' });
         break;
       case 'status.update':
         onStatus(p);
         break;
       case 'error':
-        addError(p.message || '发生错误');
+        addError(p.message || 'Une erreur est survenue');
         break;
       case 'notice':
         if (p.message) addSystem(p.message);
@@ -678,11 +678,11 @@
     asks.delete(req.id);
   }
 
-  const APPROVAL_LABELS = { once: '允许一次', session: '本会话允许', always: '始终允许', deny: '拒绝' };
+  const APPROVAL_LABELS = { once: 'Autoriser une fois', session: 'Autoriser pour cette conversation', always: 'Toujours autoriser', deny: 'Refuser' };
 
   function showApproval(req) {
     const p = req.params;
-    const card = askCard(req, '需要你的确认');
+    const card = askCard(req, 'Ta confirmation est nécessaire');
     if (p.description) card.appendChild(el('div', null, p.description));
     if (p.command) card.appendChild(el('pre', null, p.command));
     const choices = el('div', 'choices');
@@ -690,7 +690,7 @@
     for (const choice of offered) {
       const b = el('button', choice === 'once' ? 'primary' : '', APPROVAL_LABELS[choice] || choice);
       b.type = 'button';
-      b.onclick = () => finishAsk(req, card, { choice }, '已选择：' + (APPROVAL_LABELS[choice] || choice));
+      b.onclick = () => finishAsk(req, card, { choice }, 'Choisi : ' + (APPROVAL_LABELS[choice] || choice));
       choices.appendChild(b);
     }
     card.appendChild(choices);
@@ -702,7 +702,7 @@
     box.appendChild(el('div', null, q.question));
     const input = document.createElement('textarea');
     input.rows = 2;
-    input.placeholder = '输入回答…';
+    input.placeholder = 'Ta réponse…';
     const choices = el('div', 'choices');
     for (const c of q.choices || []) {
       const b = el('button', null, c);
@@ -730,7 +730,7 @@
 
   function showClarify(req) {
     const p = req.params;
-    const card = askCard(req, 'Hermes 想确认一下');
+    const card = askCard(req, 'Hermes demande une confirmation');
     const actions = el('div', 'choices');
     if (Array.isArray(p.questions) && p.questions.length) {
       const blocks = p.questions.map(q => {
@@ -738,26 +738,26 @@
         card.appendChild(block);
         return { q, block };
       });
-      const submit = el('button', 'primary', '提交');
+      const submit = el('button', 'primary', 'Envoyer');
       submit.type = 'button';
       submit.onclick = () => {
         const answers = {};
         for (const { q, block } of blocks) answers[q.qid] = block.value();
-        finishAsk(req, card, { answers }, '已回答');
+        finishAsk(req, card, { answers }, 'Répondu');
       };
       actions.appendChild(submit);
     } else {
       const block = questionBlock({ question: p.question || '', choices: p.choices, multi_select: p.multi_select },
-        answer => finishAsk(req, card, { answer }, '已回答：' + answer));
+        answer => finishAsk(req, card, { answer }, 'Répondu : ' + answer));
       card.appendChild(block);
-      const submit = el('button', 'primary', '回答');
+      const submit = el('button', 'primary', 'Répondre');
       submit.type = 'button';
-      submit.onclick = () => finishAsk(req, card, { answer: block.value() }, '已回答');
+      submit.onclick = () => finishAsk(req, card, { answer: block.value() }, 'Répondu');
       actions.appendChild(submit);
     }
-    const skip = el('button', null, '跳过');
+    const skip = el('button', null, 'Ignorer');
     skip.type = 'button';
-    skip.onclick = () => finishAsk(req, card, Array.isArray(p.questions) ? {} : { answer: '' }, '已跳过');
+    skip.onclick = () => finishAsk(req, card, Array.isArray(p.questions) ? {} : { answer: '' }, 'Ignoré');
     actions.appendChild(skip);
     card.appendChild(actions);
     placeAsk(card);
@@ -770,12 +770,12 @@
     input.type = secret ? 'password' : 'text';
     card.appendChild(input);
     const actions = el('div', 'choices');
-    const ok = el('button', 'primary', '提交');
+    const ok = el('button', 'primary', 'Envoyer');
     ok.type = 'button';
-    ok.onclick = () => finishAsk(req, card, { value: input.value }, '已提交');
-    const skip = el('button', null, '跳过');
+    ok.onclick = () => finishAsk(req, card, { value: input.value }, 'Envoyé');
+    const skip = el('button', null, 'Ignorer');
     skip.type = 'button';
-    skip.onclick = () => finishAsk(req, card, { value: '' }, '已跳过');
+    skip.onclick = () => finishAsk(req, card, { value: '' }, 'Ignoré');
     actions.appendChild(ok);
     actions.appendChild(skip);
     card.appendChild(actions);
@@ -792,19 +792,19 @@
         showClarify(req);
         return true;
       case 'secret':
-        showValuePrompt(req, '需要填写 ' + (p.env_var || '密钥'), p.prompt, true);
+        showValuePrompt(req, 'À renseigner : ' + (p.env_var || 'clé'), p.prompt, true);
         return true;
       case 'vault.unlock_prompt':
-        showValuePrompt(req, '解锁 ' + (p.display_name || p.backend || '密码库'), '', true);
+        showValuePrompt(req, 'Déverrouiller ' + (p.display_name || p.backend || 'coffre'), '', true);
         return true;
       case 'vault.code':
-        showValuePrompt(req, '需要验证码', p.prompt || '', false);
+        showValuePrompt(req, 'Code de vérification requis', p.prompt || '', false);
         return true;
       case 'vault.save_login':
         gw.respond(req.id, { value: '' });
         return true;
       case 'sudo':
-        addSystem('Android 上没有 sudo，已跳过需要管理员权限的命令。');
+        addSystem('Pas de sudo sur Android : commande administrateur ignorée.');
         gw.respond(req.id, { value: '' });
         return true;
       // Desktop-only bridges (terminal pane, preview pane, window capture, guided tour).
@@ -860,7 +860,7 @@
       }
       return true;
     } catch (e) {
-      if (!quiet) toast('打开会话失败：' + e.message);
+      if (!quiet) toast('Impossible d’ouvrir la conversation : ' + e.message);
       return false;
     }
   }
@@ -885,18 +885,18 @@
     const list = $('#session-list');
     if (!gw.open) {
       list.innerHTML = '';
-      list.appendChild(el('div', 'sess-empty', 'Hermes 未连接'));
+      list.appendChild(el('div', 'sess-empty', 'Hermes non connecté'));
       return;
     }
     try {
       const r = await gw.request('session.list', { limit: 80 }, 20000);
       list.innerHTML = '';
       const rows = (r && r.sessions) || [];
-      if (!rows.length) list.appendChild(el('div', 'sess-empty', '还没有会话'));
+      if (!rows.length) list.appendChild(el('div', 'sess-empty', 'Aucune conversation'));
       for (const row of rows) {
         const b = el('button', 'sess' + (row.id === chat.storedId ? ' active' : ''));
         b.type = 'button';
-        b.appendChild(el('div', 'st', row.title || row.preview || '未命名会话'));
+        b.appendChild(el('div', 'st', row.title || row.preview || 'Conversation sans titre'));
         b.appendChild(el('div', 'sp', [relTime(row.last_active || row.started_at), row.title ? row.preview : ''].filter(Boolean).join(' · ')));
         b.onclick = async () => {
           closeDrawer();
@@ -906,7 +906,7 @@
       }
     } catch (e) {
       list.innerHTML = '';
-      list.appendChild(el('div', 'sess-empty', '加载失败：' + e.message));
+      list.appendChild(el('div', 'sess-empty', 'Chargement impossible : ' + e.message));
     }
   }
 
@@ -965,7 +965,7 @@
       return;
     }
     if (!gw.open) {
-      toast('Hermes 还没有连接');
+      toast('Hermes n’est pas encore connecté');
       return;
     }
     ui.input.value = '';
@@ -977,14 +977,14 @@
     try {
       const sid = await ensureSession();
       const refs = files.length ? await uploadAttachments(sid) : [];
-      const finalText = [text].concat(refs).filter(Boolean).join('\n\n') || '请查看附件';
+      const finalText = [text].concat(refs).filter(Boolean).join('\n\n') || 'Voir la pièce jointe';
       setRunning(true);
       const r = await gw.request('prompt.submit', { session_id: sid, text: finalText }, 60000);
-      if (r && r.status === 'queued') addSystem('已加入队列，当前回复结束后处理');
-      else if (r && (r.status === 'steered' || r.status === 'redirected')) addSystem('已把新消息交给正在运行的任务');
+      if (r && r.status === 'queued') addSystem('En file d’attente, traité après la réponse en cours');
+      else if (r && (r.status === 'steered' || r.status === 'redirected')) addSystem('Message transmis à la tâche en cours');
     } catch (e) {
       setRunning(false);
-      addError('发送失败：' + e.message);
+      addError('Échec de l’envoi : ' + e.message);
     }
   }
 
@@ -1004,7 +1004,7 @@
   $('#btn-attach').onclick = () => ui.file.click();
   ui.file.addEventListener('change', () => {
     for (const f of Array.from(ui.file.files || [])) {
-      if (f.size > 25 * 1024 * 1024) { toast(f.name + ' 超过 25 MB'); continue; }
+      if (f.size > 25 * 1024 * 1024) { toast(f.name + ' dépasse 25 Mo'); continue; }
       chat.attachments.push(f);
     }
     ui.file.value = '';
@@ -1076,13 +1076,13 @@
   // We only steer the console's theme while it is one we set (or a stock default), so a
   // theme the user picked inside the console wins.
   const THEME_KEY = 'hermes.android.theme';
-  const THEMES = ['sage', 'clay', 'lavender'];
+  const THEMES = ['nuit'];
 
   function currentTheme() {
     try {
       const t = localStorage.getItem(THEME_KEY);
-      return THEMES.includes(t) ? t : 'sage';
-    } catch (_) { return 'sage'; }
+      return 'nuit';
+    } catch (_) { return 'nuit'; }
   }
 
   function renderThemePicker() {
@@ -1134,16 +1134,16 @@
       if (r && r.provider_configured === false) {
         ui.banner.innerHTML = '';
         const text = el('div', 'banner-text');
-        text.appendChild(el('strong', null, '还没有配置 AI 模型'));
-        text.appendChild(el('span', null, '在控制台添加服务商和 API Key 后即可对话'));
+        text.appendChild(el('strong', null, 'Aucun modèle configuré'));
+        text.appendChild(el('span', null, 'Ajoute un fournisseur et ta clé API pour commencer à discuter'));
         ui.banner.appendChild(text);
-        const go = el('button', 'primary', '去配置');
+        const go = el('button', 'primary', 'Configurer');
         go.type = 'button';
         go.onclick = () => { showView('console', '/models'); ui.banner.hidden = true; };
         ui.banner.appendChild(go);
         const x = el('button', 'banner-close', '×');
         x.type = 'button';
-        x.setAttribute('aria-label', '关闭');
+        x.setAttribute('aria-label', 'Fermer');
         x.onclick = () => { ui.banner.hidden = true; };
         ui.banner.appendChild(x);
         ui.banner.hidden = false;
@@ -1163,13 +1163,13 @@
 
   function phaseLabel(phase) {
     return ({
-      idle: '未启动',
-      installing: '正在安装',
-      starting: '正在启动',
-      running: '运行中',
-      stopping: '正在停止',
-      stopped: '已停止',
-      error: '出错了',
+      idle: 'Non démarré',
+      installing: 'Installation',
+      starting: 'Démarrage',
+      running: 'Actif',
+      stopping: 'Arrêt',
+      stopped: 'Arrêté',
+      error: 'Erreur',
     })[phase] || phase || '—';
   }
 
@@ -1202,28 +1202,28 @@
     $('#boot-logs').hidden = phase !== 'error';
     boot.progress.hidden = false;
     if (phase === 'installing') {
-      boot.title.textContent = '首次运行：正在安装运行环境';
-      boot.text.textContent = (status.message || '') + '（约需 1–3 分钟，只需一次）';
+      boot.title.textContent = 'Premier lancement : installation du moteur';
+      boot.text.textContent = (status.message || '') + ' (1 à 3 minutes, une seule fois)';
       setProgress(boot.progress, status.progress);
     } else if (phase === 'starting') {
-      boot.title.textContent = '正在启动 Hermes';
-      boot.text.textContent = '首次启动需要预热 Python 环境，可能要一两分钟';
+      boot.title.textContent = 'Démarrage de Hermes';
+      boot.text.textContent = 'Le premier démarrage prépare Python, cela peut prendre une ou deux minutes';
       setProgress(boot.progress, -1);
     } else if (phase === 'error') {
-      boot.title.textContent = 'Hermes 没有正常运行';
+      boot.title.textContent = 'Hermes ne tourne pas correctement';
       boot.text.textContent = status.message || '';
       boot.progress.hidden = true;
       boot.action.hidden = false;
-      boot.action.textContent = '重新启动';
+      boot.action.textContent = 'Redémarrer';
       boot.action.onclick = () => bridge && bridge.restart();
     } else {
-      boot.title.textContent = phase === 'stopping' ? '正在停止…' : 'Hermes 未运行';
-      boot.text.textContent = '智能体服务在这台手机上本地运行';
+      boot.title.textContent = phase === 'stopping' ? 'Arrêt…' : 'Hermes arrêté';
+      boot.text.textContent = 'L’agent tourne localement sur ce téléphone';
       boot.progress.hidden = phase !== 'stopping';
       setProgress(boot.progress, -1);
       if (phase !== 'stopping') {
         boot.action.hidden = false;
-        boot.action.textContent = '启动 Hermes';
+        boot.action.textContent = 'Démarrer Hermes';
         boot.action.onclick = () => bridge && bridge.start();
       }
     }
@@ -1249,7 +1249,7 @@
       $('#opt-awake').checked = bridge.keepAwake();
       $('#opt-autostart').checked = bridge.autoStart();
       const optimized = bridge.batteryOptimized();
-      $('#battery-text').textContent = optimized ? '受系统限制，后台可能被暂停' : '已关闭，后台运行更稳定';
+      $('#battery-text').textContent = optimized ? 'Limitée par le système : Hermes peut être mis en pause en arrière-plan' : 'Désactivée : fonctionnement en arrière-plan plus stable';
       $('#btn-battery').hidden = !optimized;
     }
   }
@@ -1365,7 +1365,7 @@
 
   // The console is same-origin, so its labels are translated from here on every load.
   $('#console-frame').addEventListener('load', () => {
-    try { window.installConsoleI18n($('#console-frame').contentDocument); } catch (e) { console.warn('console i18n', e); }
+    try { $('#console-frame').contentWindow.localStorage.setItem('hermes-locale', 'fr'); } catch (_) { /* même origine */ }
   });
 
   updateSendButton();

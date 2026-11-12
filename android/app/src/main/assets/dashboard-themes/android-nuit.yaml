@@ -1,0 +1,18 @@
+# Fourni par l'app Hermes ; réécrit à chaque démarrage. Copie-le sous un autre nom pour le personnaliser.
+name: android-nuit
+label: "Hermes · Bleu nuit"
+description: Thème sombre bleu nuit assorti à l'app
+palette:
+  background: "#06071F"
+  midground: "#E8EAFF"
+  foreground:
+    hex: "#FFFFFF"
+    alpha: 0
+  warmGlow: "rgba(139, 156, 255, 0.10)"
+  noiseOpacity: 0
+colorOverrides:
+  primary: "#8B9CFF"
+  primaryForeground: "#06071F"
+  ring: "#8B9CFF"
+  card: "#141638"
+  border: "#262A5C"

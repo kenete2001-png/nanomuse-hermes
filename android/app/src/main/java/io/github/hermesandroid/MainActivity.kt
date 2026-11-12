@@ -44,7 +44,7 @@ class MainActivity : Activity() {
         WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
 
         web = WebView(this)
-        web.setBackgroundColor(Color.parseColor("#F5F4EF"))
+        web.setBackgroundColor(Color.parseColor("#06071F"))
         setContentView(web)
 
         with(web.settings) {
@@ -187,7 +187,7 @@ class MainActivity : Activity() {
         try {
             startActivity(Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         } catch (_: ActivityNotFoundException) {
-            Toast.makeText(this, "没有可以打开此链接的应用", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Aucune application ne peut ouvrir ce lien", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -252,7 +252,7 @@ class MainActivity : Activity() {
             runOnUiThread {
                 val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                 cm.setPrimaryClip(ClipData.newPlainText("Hermes", text))
-                Toast.makeText(this@MainActivity, "已复制", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@MainActivity, "Copié", Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -260,7 +260,7 @@ class MainActivity : Activity() {
         fun shareText(text: String) {
             runOnUiThread {
                 val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
-                startActivity(Intent.createChooser(send, "分享"))
+                startActivity(Intent.createChooser(send, "Partager"))
             }
         }
 
@@ -274,6 +274,31 @@ class MainActivity : Activity() {
         @JavascriptInterface
         fun toast(text: String) {
             runOnUiThread { Toast.makeText(this@MainActivity, text, Toast.LENGTH_SHORT).show() }
+        }
+
+        /** Fichiers de l'agent modifiables depuis l'app (âme et mémoire), et seulement ceux-là. */
+        private fun agentFile(name: String): java.io.File? {
+            val allowed = setOf("SOUL.md", "memories/MEMORY.md", "memories/USER.md")
+            if (name !in allowed) return null
+            return java.io.File(RuntimeEnv.hermesHome(this@MainActivity), name)
+        }
+
+        @JavascriptInterface
+        fun readAgentFile(name: String): String {
+            val f = agentFile(name) ?: return ""
+            return try { if (f.isFile) f.readText(Charsets.UTF_8) else "" } catch (e: Exception) { "" }
+        }
+
+        @JavascriptInterface
+        fun writeAgentFile(name: String, content: String): Boolean {
+            val f = agentFile(name) ?: return false
+            return try {
+                f.parentFile?.mkdirs()
+                val tmp = java.io.File(f.parentFile, f.name + ".tmp")
+                tmp.writeText(content, Charsets.UTF_8)
+                if (!tmp.renameTo(f)) { f.writeText(content, Charsets.UTF_8); tmp.delete() }
+                true
+            } catch (e: Exception) { false }
         }
 
         @JavascriptInterface

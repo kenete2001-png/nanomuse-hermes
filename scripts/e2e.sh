@@ -2,7 +2,7 @@
 # Install the release APK on an emulator, launch it and wait for the on-device
 # Hermes to come up. Screenshots, UI dump and logcat go to ./e2e.
 set -u
-PKG=io.github.hermesandroid
+PKG=io.github.kenete.hermes
 mkdir -p e2e
 APK=$(ls dist/*.apk | head -1)
 {
@@ -36,9 +36,22 @@ grep -o "HERMES_SETUP_STATUS.*" e2e/web-console.txt | head -1 >> e2e/summary.txt
 size=$(adb shell wm size | grep -o '[0-9]*x[0-9]*' | tail -1)
 W=${size%x*}; H=${size#*x}
 tap() { adb shell input tap "$1" "$2"; }
-tap $((W / 2)) $((H * 955 / 1000)); sleep 20; adb exec-out screencap -p > e2e/2-console.png
-tap $((W * 5 / 6)) $((H * 955 / 1000)); sleep 6; adb exec-out screencap -p > e2e/3-status.png
-tap $((W / 6)) $((H * 955 / 1000)); sleep 3
+# Onglets : Chat, Agent, Tableau, Système (4 onglets, centres à 1/8, 3/8, 5/8, 7/8).
+tapText() {  # touche l'élément dont le texte vaut $1 (via uiautomator)
+  adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1
+  adb shell cat /sdcard/ui.xml > e2e/ui.xml 2>/dev/null
+  b=$(python3 scripts/find_text.py e2e/ui.xml "$1")
+  if [ -n "$b" ]; then tap $b; echo "tap '$1' at $b" >> e2e/summary.txt; else echo "not found: $1" >> e2e/summary.txt; fi
+}
+tap $((W * 3 / 8)) $((H * 955 / 1000)); sleep 4; adb exec-out screencap -p > e2e/2-agent.png
+adb shell input swipe $((W / 2)) $((H * 7 / 10)) $((W / 2)) $((H * 2 / 10)) 300; sleep 2; adb exec-out screencap -p > e2e/2b-agent-bas.png
+tapText "Mémoire"; sleep 3; adb exec-out screencap -p > e2e/2c-memoire.png
+adb shell input keyevent 4; sleep 2
+adb shell input swipe $((W / 2)) $((H * 3 / 10)) $((W / 2)) $((H * 8 / 10)) 300; sleep 2
+tapText "Modèle"; sleep 20; adb exec-out screencap -p > e2e/3-modele.png
+tap $((W * 5 / 8)) $((H * 955 / 1000)); sleep 8; adb exec-out screencap -p > e2e/4-tableau.png
+tap $((W * 7 / 8)) $((H * 955 / 1000)); sleep 6; adb exec-out screencap -p > e2e/5-systeme.png
+tap $((W / 8)) $((H * 955 / 1000)); sleep 3; adb exec-out screencap -p > e2e/6-chat.png
 
 adb logcat -d -v brief Hermes:V HermesWeb:V AndroidRuntime:E '*:S' > e2e/logcat.txt
 grep -i "out of sync\|Traceback\|Error" e2e/logcat.txt | head -20 >> e2e/summary.txt

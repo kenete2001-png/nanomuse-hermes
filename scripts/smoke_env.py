@@ -58,6 +58,16 @@ def main() -> int:
     code = ("import os, site, sys; sys.argv[0]='hermes'; "
             "site.addsitedir(os.environ['HERMES_SITE']); "
             "from hermes_cli.main import main; sys.exit(main())")
+    shell_usr = f"{r}/tools/shell/data/data/com.termux/files/usr"
+    if True:  # outil shell (bash + git) ajouté par fetch_shell.py
+        env["SHELL"] = f"{shell_usr}/bin/bash"
+        env["GIT_EXEC_PATH"] = f"{shell_usr}/libexec/git-core"
+        env["GIT_TEMPLATE_DIR"] = f"{shell_usr}/share/git-core/templates"
+        env["GIT_CONFIG_NOSYSTEM"] = "1"
+        env["PAGER"] = env["GIT_PAGER"] = "cat"
+        env["TERMINFO"] = f"{shell_usr}/share/terminfo"
+        if "SSL_CERT_FILE" in env:
+            env["GIT_SSL_CAINFO"] = env["CURL_CA_BUNDLE"] = env["SSL_CERT_FILE"]
     lines = ["#!/system/bin/sh", "unset PYTHONHOME PYTHONSTARTUP LD_PRELOAD"]
     lines += [f"export {k}={shlex.quote(v)}" for k, v in env.items()]
     lines += [f"mkdir -p {shlex.quote(env['HERMES_HOME'])} {shlex.quote(env['TMPDIR'])}", f"cd {shlex.quote(home)}"]

@@ -65,6 +65,20 @@ object RuntimeEnv {
             env["SSL_CERT_FILE"] = "$r/$it"
             env["REQUESTS_CA_BUNDLE"] = "$r/$it"
         }
+        // Outil « shell » (bash + git, paquets Termux officiels) ajouté à la construction.
+        val shellUsr = File(r, "tools/shell/data/data/com.termux/files/usr")
+        if (File(shellUsr, "bin/bash").isFile) {
+            env["SHELL"] = "$shellUsr/bin/bash"
+            val gitCore = File(shellUsr, "libexec/git-core")
+            if (gitCore.isDirectory) env["GIT_EXEC_PATH"] = gitCore.absolutePath
+            val templates = File(shellUsr, "share/git-core/templates")
+            if (templates.isDirectory) env["GIT_TEMPLATE_DIR"] = templates.absolutePath
+            env["GIT_CONFIG_NOSYSTEM"] = "1"
+            env["PAGER"] = "cat"
+            env["GIT_PAGER"] = "cat"
+            env["TERMINFO"] = "$shellUsr/share/terminfo"
+            env["SSL_CERT_FILE"]?.let { env["GIT_SSL_CAINFO"] = it; env["CURL_CA_BUNDLE"] = it }
+        }
         return env
     }
 

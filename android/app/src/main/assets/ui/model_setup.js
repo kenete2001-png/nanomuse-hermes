@@ -4,7 +4,7 @@
   function $(sel) { return document.querySelector(sel); }
 
   function openConsole(path) {
-    try { localStorage.setItem('hermes-locale', 'zh'); } catch (_) {}
+    try { localStorage.setItem('hermes-locale', 'fr'); } catch (_) {}
     const tab = $('#tabs button[data-view="console"]');
     if (tab) tab.click();
     window.setTimeout(function () {
