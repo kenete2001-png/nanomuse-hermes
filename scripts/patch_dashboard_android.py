@@ -127,6 +127,31 @@ PATCH = r'''
 '''
 
 
+BANNER_CSS = r'''
+/* Bandeau « Aider à améliorer Hermes » : le texte passe sur sa propre ligne. */
+[data-testid="shared-metrics-consent-banner"] > span.flex-1 {
+  flex-basis: 100% !important;
+  order: 9;
+}
+'''
+
+FR_MARKER = "// Traductions françaises manquantes"
+
+
+def patch_french(root: pathlib.Path) -> int:
+    fr = root / "web" / "src" / "i18n" / "fr.ts"
+    extra = pathlib.Path(__file__).with_name("fr_extra.ts.txt")
+    if not fr.is_file() or not extra.is_file():
+        print(f"fr.ts or fr_extra missing: {fr} {extra}", file=sys.stderr)
+        return 1
+    text = fr.read_text(encoding="utf-8")
+    if FR_MARKER in text:
+        return 0
+    fr.write_text(text.rstrip() + "\n\n" + extra.read_text(encoding="utf-8"), encoding="utf-8")
+    print(f"patched {fr}")
+    return 0
+
+
 def main() -> int:
     if len(sys.argv) != 2:
         print("usage: patch_dashboard_android.py <upstream-root>", file=sys.stderr)
@@ -139,11 +164,14 @@ def main() -> int:
         return 1
 
     text = css.read_text(encoding="utf-8")
+    rc = patch_french(root)
+    if rc:
+        return rc
     if MARKER in text:
         print("Android dashboard mobile patch already present")
         return 0
 
-    css.write_text(text.rstrip() + PATCH + "\n", encoding="utf-8")
+    css.write_text(text.rstrip() + PATCH + BANNER_CSS + "\n", encoding="utf-8")
     print(f"patched {css}")
 
     # Fail loudly if the critical collision fixes somehow disappear while the
