@@ -46,7 +46,12 @@ def log(msg: str) -> None:
 
 
 def fetch(url: str) -> bytes:
-    req = urllib.request.Request(url, headers={"User-Agent": "hermes-android-build"})
+    headers = {"User-Agent": "hermes-android-build"}
+    token = os.environ.get("GITHUB_TOKEN", "")
+    if token and url.startswith("https://api.github.com/"):
+        # Les requêtes anonymes à l'API GitHub sont limitées par IP (403 « rate limit exceeded »).
+        headers["Authorization"] = f"Bearer {token}"
+    req = urllib.request.Request(url, headers=headers)
     for attempt in range(4):
         try:
             with urllib.request.urlopen(req, timeout=120) as r:

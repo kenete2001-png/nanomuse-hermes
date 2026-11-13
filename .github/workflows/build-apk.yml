@@ -68,6 +68,8 @@ jobs:
           cat build/deb/meta.json
 
       - name: Ajouter bash et git (paquets Termux officiels)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           scripts/ci_run.sh shell python3 scripts/fetch_shell.py \
             --payload-root build/deb/root/data/data/com.termux/files/usr/lib/hermes-agent
