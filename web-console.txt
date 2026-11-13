@@ -1,0 +1,3 @@
+--------- beginning of main
+D/HermesWeb( 4142): http://127.0.0.1:9119/__android/app.js:1173 HERMES_GATEWAY_CONNECTED
+D/HermesWeb( 4142): http://127.0.0.1:9119/__android/app.js:1247 HERMES_SETUP_STATUS provider_configured=false
