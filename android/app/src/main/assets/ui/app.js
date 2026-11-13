@@ -290,6 +290,7 @@
       if (child !== ui.empty) child.remove();
     }
     ui.empty.hidden = false;
+    if (chat.turn) finishToolGroup(chat.turn);
     chat.turn = null;
   }
 
@@ -334,10 +335,51 @@
     return append(el('div', 'msg system', text));
   }
 
+  // Common provider / engine errors, shown in French. The original text stays available in a tooltip.
+  const ERROR_FR = [
+    [/your request was not processed/i, 'Le fournisseur n’a pas traité la requête. Réessaie dans un instant ou change de modèle.'],
+    [/delegation owner exited/i, 'La tâche déléguée s’est arrêtée avant la fin (le processus parent a quitté). Relance ta demande.'],
+    [/\b401\b|unauthori[sz]ed|invalid api key|incorrect api key|authentication/i, 'Clé API refusée (401). Vérifie ta clé dans « Clés et variables ».'],
+    [/\b403\b|forbidden|permission denied/i, 'Accès refusé par le fournisseur (403). Vérifie les droits de ta clé ou du modèle.'],
+    [/\b402\b|insufficient (credits|balance|quota)|payment required/i, 'Crédit insuffisant chez le fournisseur (402). Recharge ton compte ou change de modèle.'],
+    [/\b429\b|rate.?limit|too many requests|quota exceeded|resource.?exhausted/i, 'Trop de requêtes (429) : limite du fournisseur atteinte. Patiente un peu puis réessaie.'],
+    [/timed? ?out|timeout|deadline exceeded|\b504\b/i, 'Délai dépassé : le fournisseur n’a pas répondu à temps. Réessaie.'],
+    [/\b5(00|02|03)\b|overloaded|service unavailable|bad gateway|internal server error/i, 'Le fournisseur est indisponible ou surchargé pour le moment. Réessaie dans un instant.'],
+    [/model.*not found|no such model|model_not_found|\b404\b/i, 'Modèle introuvable chez le fournisseur. Choisis un autre modèle.'],
+    [/context length|context window|maximum context|too many tokens/i, 'La conversation est trop longue pour ce modèle. Démarre une nouvelle conversation.'],
+    [/connection (refused|reset|error)|network|ECONNRE|getaddrinfo|failed to connect/i, 'Problème de connexion au fournisseur. Vérifie ta connexion Internet.'],
+  ];
+
+  function frError(text) {
+    const raw = String(text == null ? '' : text).trim();
+    if (!raw) return 'Une erreur est survenue';
+    for (const [re, fr] of ERROR_FR) if (re.test(raw)) return fr;
+    return raw;
+  }
+
   function addError(text) {
+    const raw = String(text == null ? '' : text);
+    const fr = frError(raw);
     const wrap = el('div', 'msg error');
-    wrap.appendChild(el('div', 'body', text));
+    const body = el('div', 'body', fr);
+    if (fr !== raw.trim()) body.title = raw;
+    wrap.appendChild(body);
     return append(wrap);
+  }
+
+  // Ends the reply in progress (if any) and leaves the "running" state, e.g. after an error.
+  function abortTurn() {
+    const turn = chat.turn;
+    if (turn) {
+      clearStatus(turn);
+      sealSegment(turn);
+      for (const card of turn.tools.values()) {
+        if (card.classList.contains('running')) setToolResult(card, '', true);
+      }
+      finishToolGroup(turn);
+      chat.turn = null;
+    }
+    setRunning(false);
   }
 
   function renderMarkdownInto(node, text, streaming) {
@@ -358,6 +400,8 @@
       reason: null,
       reasonText: '',
       tools: new Map(),
+      group: null,
+      startedAt: Date.now(),
       statusEl: null,
       renderQueued: false,
     };
@@ -392,6 +436,22 @@
     turn.reasonText = '';
   }
 
+  function normText(s) {
+    return String(s || '').replace(/\s+/g, ' ').trim();
+  }
+
+  // Everything already rendered as answer text in this turn.
+  function shownText(turn) {
+    if (!turn) return '';
+    return turn.allText.concat(turn.segText ? [turn.segText] : []).join('\n\n');
+  }
+
+  function alreadyShown(turn, text) {
+    const t = normText(text);
+    if (!t) return true;
+    return normText(shownText(turn)).includes(t);
+  }
+
   function appendText(text) {
     const turn = beginTurn();
     clearStatus(turn);
@@ -420,13 +480,59 @@
     scrollToBottom();
   }
 
+  // All tool cards of one reply live in a single collapsed block.
+  function toolGroup(turn) {
+    if (turn.group) return turn.group;
+    const det = document.createElement('details');
+    det.className = 'toolgroup running';
+    const sum = el('summary');
+    sum.appendChild(el('span', 'tglabel'));
+    det.appendChild(sum);
+    const list = el('div', 'tglist');
+    det.appendChild(list);
+    turn.wrap.appendChild(det);
+    turn.group = { det, sum: sum.firstChild, list, timer: null, done: false };
+    turn.group.timer = setInterval(() => updateToolGroup(turn), 1000);
+    updateToolGroup(turn);
+    return turn.group;
+  }
+
+  function updateToolGroup(turn) {
+    const g = turn && turn.group;
+    if (!g) return;
+    const n = g.list.children.length;
+    const outils = n + (n > 1 ? ' outils' : ' outil');
+    if (turn.startedAt == null) {
+      g.sum.textContent = 'A travaillé · ' + outils;
+      return;
+    }
+    const secs = Math.max(1, Math.round((Date.now() - turn.startedAt) / 1000));
+    g.sum.textContent = (g.done ? 'A travaillé ' : 'Travaille… ') + secs + ' s · ' + outils;
+  }
+
+  function finishToolGroup(turn) {
+    const g = turn && turn.group;
+    if (!g) return;
+    if (g.timer) clearInterval(g.timer);
+    g.timer = null;
+    g.done = true;
+    g.det.classList.remove('running');
+    updateToolGroup(turn);
+  }
+
+  function addToolCard(turn, card) {
+    const g = toolGroup(turn);
+    g.list.appendChild(card);
+    updateToolGroup(turn);
+  }
+
   function toolCard(name, context, running) {
     const det = document.createElement('details');
     det.className = 'tool' + (running ? ' running' : '');
     const sum = el('summary');
     sum.appendChild(el('span', 'tname', name || 'outil'));
     sum.appendChild(el('span', 'tctx', context || ''));
-    sum.appendChild(el('span', 'tstate', running ? ' ' : 'Terminé'));
+    sum.appendChild(el('span', 'tstate', running ? ' ' : '✓'));
     det.appendChild(sum);
     return det;
   }
@@ -434,7 +540,7 @@
   function setToolResult(card, text, failed) {
     card.classList.remove('running');
     if (failed) card.classList.add('failed');
-    card.querySelector('.tstate').textContent = failed ? 'Échec' : 'Terminé';
+    card.querySelector('.tstate').textContent = failed ? '✗ Échec' : '✓';
     let pre = card.querySelector('pre');
     if (text) {
       if (!pre) { pre = el('pre'); card.appendChild(pre); }
@@ -458,7 +564,7 @@
     clearStatus(turn);
     sealSegment(turn);
     const card = toolCard(p.name, argsPreview(p), true);
-    turn.wrap.appendChild(card);
+    addToolCard(turn, card);
     turn.tools.set(p.tool_id, card);
     scrollToBottom();
   }
@@ -468,7 +574,8 @@
     let card = turn.tools.get(p.tool_id);
     if (!card) {
       card = toolCard(p.name, argsPreview(p), false);
-      turn.wrap.appendChild(card);
+      sealSegment(turn);
+      addToolCard(turn, card);
     }
     const result = p.summary || p.result_text || (p.result != null ? textOf(p.result) : '');
     const failed = p.result && typeof p.result === 'object' && (p.result.error || p.result.success === false);
@@ -491,16 +598,17 @@
   function onComplete(p) {
     const turn = beginTurn();
     clearStatus(turn);
-    if (!turn.segText && !turn.allText.length && p) {
+    if (p) {
+      // Fallback only: never re-add text that is already on screen for this turn.
       const finalText = textOf(p.text);
-      if (finalText) appendText(finalText);
+      if (finalText && !alreadyShown(turn, finalText) && !normText(shownText(turn))) appendText(finalText);
     }
     if (p && p.reasoning && !turn.wrap.querySelector('details.reasoning')) {
       appendReasoning(p.reasoning);
     }
     sealSegment(turn);
     if (p && p.status === 'error') {
-      const why = p.error || p.failure_reason || p.warning || 'Erreur pendant cette réponse';
+      const why = frError(p.error || p.failure_reason || p.warning || 'Erreur pendant cette réponse');
       const box = el('div', 'body');
       box.style.color = 'var(--err)';
       box.textContent = '⚠ ' + why;
@@ -527,6 +635,7 @@
       meta.appendChild(el('span', null, (usage.total_tokens || ((usage.input_tokens || 0) + (usage.output_tokens || 0))) + ' jetons'));
     }
     if (meta.childNodes.length) turn.wrap.appendChild(meta);
+    finishToolGroup(turn);
     chat.turn = null;
     setRunning(false);
     scrollToBottom();
@@ -540,6 +649,7 @@
       if (!m || m.display_kind === 'hidden') continue;
       const text = m.text != null ? m.text : textOf(m.content);
       if (m.role === 'user') {
+        if (chat.turn) finishToolGroup(chat.turn);
         chat.turn = null;
         turn = null;
         if (text) addUser(text);
@@ -555,13 +665,16 @@
       } else if (m.role === 'tool') {
         turn = beginTurn();
         sealSegment(turn);
+        if (!turn.group) turn.startedAt = null;
         const card = toolCard(m.name, m.context || '', false);
-        turn.wrap.appendChild(card);
+        addToolCard(turn, card);
         setToolResult(card, clip(text, 4000), false);
+        finishToolGroup(turn);
       }
     }
     if (chat.turn) {
       sealSegment(chat.turn);
+      finishToolGroup(chat.turn);
       chat.turn = null;
     }
     requestAnimationFrame(() => scrollToBottom(true));
@@ -593,7 +706,7 @@
         appendReasoning(p.text || '');
         break;
       case 'message.interim':
-        if (!p.already_streamed && p.text) appendText(p.text);
+        if (!p.already_streamed && p.text && !alreadyShown(chat.turn, p.text)) appendText(p.text);
         if (chat.turn) sealSegment(chat.turn);
         break;
       case 'message.complete':
@@ -612,7 +725,8 @@
         onStatus(p);
         break;
       case 'error':
-        addError(p.message || 'Une erreur est survenue');
+        abortTurn();
+        addError(p.message || p.error || 'Une erreur est survenue');
         break;
       case 'notice':
         if (p.message) addSystem(p.message);
