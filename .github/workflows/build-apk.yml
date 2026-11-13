@@ -110,6 +110,13 @@ jobs:
           path: upstream
           fetch-depth: 1
 
+      # Le dépôt amont est passé à pnpm (pnpm-lock.yaml, Node >= 26, version de pnpm figée dans pm/lock.json).
+      - name: Node pour le tableau de bord amont (pnpm)
+        if: hashFiles('upstream/pnpm-lock.yaml') != ''
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: upstream/.nvmrc
+
       - name: Build dashboard web UI
         working-directory: upstream
         env:
@@ -117,10 +124,20 @@ jobs:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
           PUPPETEER_SKIP_DOWNLOAD: '1'
           HUSKY: '0'
+          LEFTHOOK: '0'
+          CI: 'true'
         run: |
-          npm ci --workspace web --include-workspace-root --no-audit --no-fund \
-            || npm ci --no-audit --no-fund
-          ../scripts/ci_run.sh web-build npm run build --workspace web
+          if [ -f pnpm-lock.yaml ]; then
+            PNPM_VERSION=$(node -p "require('./pm/lock.json').packages.pnpm.version")
+            echo "node $(node --version), pnpm $PNPM_VERSION"
+            npm install -g "pnpm@$PNPM_VERSION" --no-audit --no-fund
+            ../scripts/ci_run.sh web-deps node scripts/build/node-deps.mjs --source "$PWD" --workspace web
+            ../scripts/ci_run.sh web-build pnpm --dir web run build
+          else
+            npm ci --workspace web --include-workspace-root --no-audit --no-fund \
+              || npm ci --no-audit --no-fund
+            ../scripts/ci_run.sh web-build npm run build --workspace web
+          fi
           test -f hermes_cli/web_dist/index.html
 
       - name: Relocate runtime for the app
