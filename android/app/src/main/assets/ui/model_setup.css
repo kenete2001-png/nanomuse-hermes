@@ -11,3 +11,5 @@
 .ai-fallback summary{cursor:pointer;color:var(--text-2);font-weight:650;font-size:13.5px}
 .ai-fallback p{margin:8px 0;color:var(--muted);font-size:12.5px;line-height:1.5}
 @media(max-width:560px){.ai-step{grid-template-columns:30px minmax(0,1fr);align-items:start}.ai-step button{grid-column:2;width:100%;margin-top:4px}.ai-setup-title{font-size:18px}}
+.ai-step button,.ai-fallback button{border:1px solid var(--line-strong);background:var(--surface-2);color:var(--text);border-radius:999px;padding:8px 16px;font-size:14px;font-weight:600}
+.ai-step button.primary{background:var(--accent-grad);color:#fff;border-color:transparent}

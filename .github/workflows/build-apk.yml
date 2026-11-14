@@ -26,7 +26,7 @@ env:
   CHANNEL_INPUT: ${{ inputs.channel || 'locked' }}
   VERSION_INPUT: ${{ inputs.version || '' }}
   # Numéro de build publié (tag hermes-fr-N et versionCode). À augmenter à chaque publication.
-  RELEASE_NUMBER: '6'
+  RELEASE_NUMBER: '7'
 
 jobs:
   apk:
@@ -57,15 +57,24 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends gpgv gnupg binutils dpkg patchelf zstd >/dev/null
+          . ./runtime.lock
+          MIN_VERSION="${HERMES_RUNTIME_MIN_VERSION:-}"
           if [ "$CHANNEL_INPUT" = locked ]; then
-            . ./runtime.lock
             CHANNEL="$HERMES_RUNTIME_CHANNEL"; VERSION="${VERSION_INPUT:-$HERMES_RUNTIME_VERSION}"
           else
             CHANNEL="$CHANNEL_INPUT"; VERSION="$VERSION_INPUT"
           fi
-          echo "runtime: channel=$CHANNEL version=${VERSION:-latest}"
-          scripts/ci_run.sh fetch python3 scripts/fetch_payload.py --channel "$CHANNEL" --version "$VERSION" --out build/deb
+          # A version typed by hand wins over the minimum (to test an older engine on purpose).
+          [ -n "$VERSION" ] && MIN_VERSION=""
+          echo "runtime: channel=$CHANNEL version=${VERSION:-latest} min=${MIN_VERSION:-none}"
+          scripts/ci_run.sh fetch python3 scripts/fetch_payload.py --channel "$CHANNEL" --version "$VERSION" \
+            --min-version "$MIN_VERSION" --out build/deb
           cat build/deb/meta.json
+
+      - name: Correctifs Android du moteur (compétences visibles sur Android)
+        run: |
+          scripts/ci_run.sh patch-engine python3 scripts/patch_engine_android.py \
+            build/deb/root/data/data/com.termux/files/usr/lib/hermes-agent
 
       - name: Ajouter bash et git (paquets Termux officiels)
         env:

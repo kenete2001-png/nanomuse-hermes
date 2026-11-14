@@ -1,5 +1,10 @@
 # Hermes Android runtime this repo builds against by default (shell syntax).
 # Leave the version empty so CI resolves the current canary package when older
-# pinned snapshots have rotated out of the upstream repository.
+# pinned snapshots have rotated out of the upstream repository (canary snapshots
+# are deleted after a few weeks: an exact pin breaks the build once it rotates).
+# HERMES_RUNTIME_MIN_VERSION makes CI refuse an engine older than 0.23.1
+# (the 0.22.0 canary used up to build hermes-fr-4 is no longer accepted).
+# Checked 2026-11-13: canary = 0.23.1~canary.20261113T064447Z-1 (commit 71725967).
 HERMES_RUNTIME_CHANNEL=canary
 HERMES_RUNTIME_VERSION=
+HERMES_RUNTIME_MIN_VERSION=0.23.1

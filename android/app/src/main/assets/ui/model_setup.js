@@ -1,38 +1,30 @@
+// Carte « Modèle d'IA » de la page Réglages : clés, choix du modèle, test.
 (function () {
   'use strict';
 
   function $(sel) { return document.querySelector(sel); }
+  const H = window.HermesApp;
 
   function openConsole(path) {
-    try { localStorage.setItem('hermes-locale', 'fr'); } catch (_) {}
-    const tab = $('#tabs button[data-view="console"]');
-    if (tab) tab.click();
-    window.setTimeout(function () {
-      const frame = $('#console-frame');
-      if (frame) frame.setAttribute('src', path);
-    }, 30);
+    if (H) H.openConsole(path);
   }
 
-  function openChat() {
-    const tab = $('#tabs button[data-view="chat"]');
-    if (tab) tab.click();
-  }
-
-  document.addEventListener('DOMContentLoaded', function () {
-    const oauth = $('#ai-oauth');
+  function init() {
+    const keys = $('#ai-oauth');
     const models = $('#ai-models');
     const apiKey = $('#ai-apikey');
     const test = $('#ai-test');
 
-    if (oauth) oauth.addEventListener('click', function () {
-      openConsole('/env');
-    });
+    if (keys) keys.addEventListener('click', function () { openConsole('/env'); });
+    // Choix du modèle : le sélecteur natif (fournisseurs configurés), sinon la page Modèles.
     if (models) models.addEventListener('click', function () {
-      openConsole('/models');
+      if (H && H.gw.open) H.openModelPicker();
+      else openConsole('/models');
     });
-    if (apiKey) apiKey.addEventListener('click', function () {
-      openConsole('/env');
-    });
-    if (test) test.addEventListener('click', openChat);
-  });
+    if (apiKey) apiKey.addEventListener('click', function () { openConsole('/env'); });
+    if (test) test.addEventListener('click', function () { if (H) H.showView('chat'); });
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
 })();

@@ -138,6 +138,8 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--channel", default="stable", choices=["stable", "canary"])
     ap.add_argument("--version", default="", help="exact Debian version to pin (default: newest)")
+    ap.add_argument("--min-version", default="",
+                    help="refuse anything older than this upstream version (e.g. 0.23.1)")
     ap.add_argument("--out", type=Path, required=True)
     args = ap.parse_args()
 
@@ -178,6 +180,14 @@ def main() -> int:
         raise SystemExit(f"{PACKAGE} {args.version or ''} not found in {suite}")
     pkg = newest(stanzas)
     log(f"selected {PACKAGE} {pkg['Version']} ({pkg['Filename']})")
+    if args.min_version:
+        # "0.23.1~canary.X-1" sorts below "0.23.1", so compare against "<min>~" (lowest 0.23.1 build).
+        too_old = subprocess.run(
+            ["dpkg", "--compare-versions", pkg["Version"], "lt", f"{args.min_version}~"]
+        ).returncode == 0
+        if too_old:
+            raise SystemExit(f"{PACKAGE} {pkg['Version']} is older than the required {args.min_version}")
+        log(f"version >= {args.min_version} OK")
 
     deb = out / Path(pkg["Filename"]).name
     fetch(f"{repo}/{pkg['Filename']}", deb)
