@@ -1,0 +1,10 @@
+--------- beginning of main
+I/Hermes  ( 4162): [app] Moteur installé : 0.23.1~canary.20261114T064334Z-1-90accafbde4e
+I/Hermes  ( 4162): [app] Démarrage : hermes dashboard --port 9119
+I/Hermes  ( 4162): ⚠ install out of sync (ffmpeg: not installed or outdated; node: not installed or outdated; npm: not installed or outdated; pnpm: not installed or outdated) — this apt-termux-managed install must rebuild the artifact to fix
+I/Hermes  ( 4162): → Using web dist from HERMES_WEB_DIST: /data/user/0/io.github.kenete.hermes/files/hermes-agent/web_dist
+I/Hermes  ( 4162): HERMES_DASHBOARD_READY port=9119
+I/Hermes  ( 4162):   Hermes Web UI → http://127.0.0.1:9119
+I/Hermes  ( 4162): [app] Hermes est prêt : http://127.0.0.1:9119
+D/HermesWeb( 4162): http://127.0.0.1:9119/__android/app.js:1727 HERMES_GATEWAY_CONNECTED
+D/HermesWeb( 4162): http://127.0.0.1:9119/__android/app.js:1771 HERMES_SETUP_STATUS provider_configured=false
